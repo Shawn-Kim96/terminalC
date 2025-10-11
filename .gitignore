@@ -3,9 +3,7 @@
 
 
 ### Data ###
-data/processed/
-data/raw_data/
-data/database/
+data/
 ### CUDA ###
 *.i
 *.ii
