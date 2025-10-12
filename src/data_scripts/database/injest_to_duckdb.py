@@ -63,7 +63,7 @@ def generate_strategy_table(con):
   if os.path.exists(rules_path):
       rules_df = pd.read_pickle(rules_path)
   else:
-      from src.data.core.indicator_signals import indicator_rulebook
+      from src.data_scripts.core.indicator_signals import indicator_rulebook
       rules_df = indicator_rulebook()
 
   signals_df = pd.read_pickle(signals_path)
