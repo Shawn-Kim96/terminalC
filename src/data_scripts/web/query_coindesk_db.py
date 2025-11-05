@@ -15,8 +15,8 @@ from pathlib import Path
 
 PROJECT_NAME = 'terminalC'
 PROJECT_PATH = os.path.join(os.path.abspath('.').split(PROJECT_NAME)[0], PROJECT_NAME)
-DATA_PATH = os.path.join(PROJECT_PATH, 'data', 'raw_data', 'news')
-DEFAULT_DB_PATH = os.path.join(DATA_PATH, 'coindesk_news.duckdb')
+DATA_PATH = os.path.join(PROJECT_PATH, 'data', 'database')
+DEFAULT_DB_PATH = os.path.join(DATA_PATH, 'market.duckdb')
 
 
 def print_stats(db_path: str) -> None:
@@ -28,7 +28,7 @@ def print_stats(db_path: str) -> None:
     print("=" * 70)
 
     # Total articles
-    total = conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0]
+    total = conn.execute("SELECT COUNT(*) FROM news_articles").fetchone()[0]
     print(f"\nTotal Articles: {total:,}")
 
     if total == 0:
@@ -41,7 +41,7 @@ def print_stats(db_path: str) -> None:
         SELECT
             MIN(published_at) as earliest,
             MAX(published_at) as latest
-        FROM articles
+        FROM news_articles
     """).fetchone()
     print(f"Date Range: {date_range[0]} to {date_range[1]}")
 
@@ -49,7 +49,7 @@ def print_stats(db_path: str) -> None:
     print("\nTop 10 Sources:")
     sources = conn.execute("""
         SELECT source, COUNT(*) as count
-        FROM articles
+        FROM news_articles
         WHERE source IS NOT NULL
         GROUP BY source
         ORDER BY count DESC
@@ -64,7 +64,7 @@ def print_stats(db_path: str) -> None:
             sentiment,
             COUNT(*) as count,
             ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) as percentage
-        FROM articles
+        FROM news_articles
         GROUP BY sentiment
         ORDER BY count DESC
     """).fetchdf()
@@ -76,7 +76,7 @@ def print_stats(db_path: str) -> None:
         SELECT
             strftime(published_at, '%Y-%m') as month,
             COUNT(*) as count
-        FROM articles
+        FROM news_articles
         WHERE published_at >= CURRENT_DATE - INTERVAL '12 months'
         GROUP BY month
         ORDER BY month DESC
@@ -101,7 +101,7 @@ def search_articles(db_path: str, keyword: str, limit: int = 10) -> None:
             source,
             published_at,
             url
-        FROM articles
+        FROM news_articles
         WHERE
             title ILIKE ? OR
             body ILIKE ?
@@ -137,7 +137,7 @@ def export_to_csv(db_path: str, output_path: str) -> None:
             sentiment,
             url,
             body
-        FROM articles
+        FROM news_articles
         ORDER BY published_at DESC
     """).fetchdf()
 
@@ -161,7 +161,7 @@ def get_recent(db_path: str, days: int = 7, limit: int = 20) -> None:
             published_at,
             sentiment,
             url
-        FROM articles
+        FROM news_articles
         WHERE published_at >= CURRENT_DATE - INTERVAL ? DAY
         ORDER BY published_at DESC
         LIMIT ?
@@ -217,7 +217,7 @@ Examples:
   python query_coindesk_db.py --export output.csv
 
   # Run custom SQL query
-  python query_coindesk_db.py --query "SELECT COUNT(*) FROM articles WHERE sentiment = 'POSITIVE'"
+  python query_coindesk_db.py --query "SELECT COUNT(*) FROM news_articles WHERE sentiment = 'POSITIVE'"
         """
     )
 
