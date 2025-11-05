@@ -1,0 +1,83 @@
+name: CoinDesk News Scraper
+
+# 매일 한국 시간 오전 9시 (UTC 0시)에 실행
+# 또한 수동으로도 실행 가능
+on:
+  schedule:
+    # UTC 기준 0시 = 한국 시간 오전 9시
+    - cron: '0 0 * * *'
+    # 추가로 하루 2번 실행하려면 아래 주석 해제
+    # - cron: '0 12 * * *'  # UTC 12시 = 한국 시간 오후 9시
+
+  # 수동 실행 가능
+  workflow_dispatch:
+
+  # Push 시에도 테스트 (선택사항, 주석 처리 가능)
+  # push:
+  #   branches: [ main ]
+  #   paths:
+  #     - 'src/data_scripts/web/**'
+
+jobs:
+  scrape-news:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        # 전체 히스토리를 가져와서 기존 데이터 파일 접근 가능
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r src/data_scripts/web/requirements.txt
+
+    - name: Run scraper
+      run: |
+        cd src/data_scripts/web
+        python coindesk_scraper.py --verbose
+
+    - name: Check scraped data
+      run: |
+        echo "Checking scraped files..."
+        ls -lh data/raw_data/news/
+
+        if [ -f "data/raw_data/news/coindesk_articles_latest.csv" ]; then
+          echo "✓ Latest CSV found"
+          wc -l data/raw_data/news/coindesk_articles_latest.csv
+        fi
+
+    - name: Commit and push data
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+
+        # 데이터 파일 추가
+        git add data/raw_data/news/
+
+        # 변경사항이 있는 경우에만 커밋
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "chore: update CoinDesk news data [skip ci]"
+          git push
+          echo "✓ Data pushed to repository"
+        fi
+
+    - name: Upload artifacts (backup)
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: coindesk-news-data
+        path: |
+          data/raw_data/news/coindesk_articles_*.csv
+          data/raw_data/news/coindesk_articles_*.pkl
+        retention-days: 30
