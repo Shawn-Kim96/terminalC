@@ -40,14 +40,10 @@ The ingest script `database/injest_to_duckdb.py` simply reads those pickles and 
 | `indicator_signal_summary` | `asset_id`, `symbol`, `timeframe`, `evaluated_at`, `buy_count`, `sell_count`, `neutral_count`, `unknown_count`, `total_indicators`, `overall_signal`, `dominant_ratio` | Aggregated indicator votes and the resulting consensus signal. |
 | `strategies` | `strategy_id`, `indicator_key`, `name`, `signal_type`, `buy_condition`, `sell_condition`, `neutral_condition`, `notes`, `timeframes`, `tags`, `confidence_level`, `source`, `created_at`, `last_updated` | Catalog of Investing.com–style textual strategies that can be surfaced to an LLM to explain each indicator rule. |
 
-## Web & Hype Tables (Planned)
+## Web Tables
 
-The current pipeline does not yet populate news or social “hype” tables. The intended schema mirrors the original design:
+News ingestion is currently implemented for CoinDesk and loaded into DuckDB through `database/injest_to_duckdb.py`.
 
-| Table | Purpose |
-| --- | --- |
-| `sources` | Metadata about each news or social feed (name, base URL, content type). |
-| `news_items` | Scraped articles with timestamps, titles, snippets, full text, and relevance tags. |
-| `hype_signals` | Mapping from social/news events to affected assets, including sentiment or impact scores. |
-
-These tables can be added to the workflow once the scrapers and extractors are integrated.***
+| Table | Columns | Description |
+| --- | --- | --- |
+| `news_articles` | `article_id`, `guid`, `source`, `title`, `body`, `excerpt`, `url`, `published_at`, `created_at`, `updated_at`, `author`, `categories`, `category_names`, `tags`, `tag_names`, `sentiment`, `image_url` | Latest CoinDesk listings stored in `data/raw_data/news/coindesk_articles_latest.pkl` and ingested into DuckDB. `body` is left `NULL` until a full-article scraper is added; timestamp fields mirror the source metadata for downstream filtering. |

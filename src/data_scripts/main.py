@@ -13,13 +13,13 @@ print(PROJECT_PATH)
 sys.path.append(PROJECT_PATH)
 
 from src.utils.timing_utils import timeit, timer
-from src.data.core.technical_analysis.divergence import DivergenceDetector
-from src.data.core.technical_indicators import add_technical_indicators, preprocess_peaks_strict
-from src.data.core.indicator_signals import (
+from src.data_scripts.core.technical_analysis.divergence import DivergenceDetector
+from src.data_scripts.core.technical_indicators import add_technical_indicators, preprocess_peaks_strict
+from src.data_scripts.core.indicator_signals import (
     generate_indicator_signals,
     summarize_indicator_signals,
 )
-from src.data.strategy import build_strategy_catalog
+from src.data_scripts.strategy import build_strategy_catalog
 
 logging.basicConfig(
     level=logging.INFO,
@@ -105,7 +105,6 @@ def main():
     total_candle_df = pd.DataFrame()
     total_divergence_df = pd.DataFrame()
 
-
     # 2) preprocess + divergence
     for filepath in tqdm(csv_files, desc="processing files"):
         candle_df, divergence_df = process_one_file(filepath)
@@ -135,6 +134,7 @@ def main():
         strategy_df = build_strategy_catalog()
         strategy_path = os.path.join(PROJECT_PATH, 'data', 'processed', 'final_strategies.pickle')
         strategy_df.to_pickle(strategy_path)
+
 
 if __name__ == "__main__":
     main()
