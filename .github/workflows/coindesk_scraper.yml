@@ -1,18 +1,18 @@
 name: CoinDesk News Scraper
 
-# 매일 한국 시간 오전 9시 (UTC 0시)에 실행
-# 또한 수동으로도 실행 가능
+# Runs daily at 9 AM KST (UTC 0:00)
+# Can also be triggered manually
 on:
   schedule:
-    # UTC 기준 0시 = 한국 시간 오전 9시
+    # UTC 0:00 = 9 AM KST
     - cron: '0 0 * * *'
-    # 추가로 하루 2번 실행하려면 아래 주석 해제
-    # - cron: '0 12 * * *'  # UTC 12시 = 한국 시간 오후 9시
+    # To run twice daily, uncomment the line below
+    # - cron: '0 12 * * *'  # UTC 12:00 = 9 PM KST
 
-  # 수동 실행 가능
+  # Allow manual trigger
   workflow_dispatch:
 
-  # Push 시에도 테스트 (선택사항, 주석 처리 가능)
+  # Optionally run on push (can be uncommented for testing)
   # push:
   #   branches: [ main ]
   #   paths:
@@ -26,7 +26,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
       with:
-        # 전체 히스토리를 가져와서 기존 데이터 파일 접근 가능
+        # Fetch full history to access existing data files
         fetch-depth: 0
 
     - name: Set up Python
@@ -60,10 +60,10 @@ jobs:
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
 
-        # 데이터 파일 추가
+        # Add data files
         git add data/raw_data/news/
 
-        # 변경사항이 있는 경우에만 커밋
+        # Commit only if there are changes
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
@@ -73,7 +73,7 @@ jobs:
         fi
 
     - name: Upload artifacts (backup)
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: coindesk-news-data
