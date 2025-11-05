@@ -2,11 +2,17 @@ import duckdb
 import os
 import sys
 import pandas as pd
+import logging
+from glob import glob
 
 PROJECT_PATH = os.path.join(os.path.abspath('.').split('terminalC')[0], 'terminalC')
 DATA_PROCESSED_PATH = os.path.join(PROJECT_PATH, 'data', 'processed')
+DATA_RAW_NEWS_PATH = os.path.join(PROJECT_PATH, 'data', 'raw_data', 'news')
 sys.path.append(PROJECT_PATH)
 
+LOGGER = logging.getLogger(__name__)
+
+# Single database connection for all data
 con = duckdb.connect(os.path.join(PROJECT_PATH, "data/database/market.duckdb"))
 
 # =============================
@@ -88,6 +94,94 @@ def generate_strategy_table(con):
   con.commit()
   con.close()
 
+
+# =============================
+#      4. NEWS TABLE
+# =============================
+
+def generate_news_table(con):
+  """
+  Ingest CoinDesk news data from CSV/pickle files into DuckDB.
+
+  Reads the latest news data and creates a news articles table.
+  """
+  # Find the latest pickle file
+  latest_pkl = os.path.join(DATA_RAW_NEWS_PATH, 'coindesk_articles_latest.pkl')
+
+  if not os.path.exists(latest_pkl):
+    LOGGER.warning("No news data found at %s", latest_pkl)
+    return
+
+  LOGGER.info("Loading news data from %s", latest_pkl)
+  news_df = pd.read_pickle(latest_pkl)
+
+  # Drop and recreate table
+  con.execute("DROP TABLE IF EXISTS news_articles")
+  con.execute("""
+    CREATE TABLE news_articles AS
+    SELECT
+      article_id,
+      guid,
+      source,
+      title,
+      body,
+      excerpt,
+      url,
+      published_at,
+      created_at,
+      updated_at,
+      author,
+      categories,
+      category_names,
+      tags,
+      tag_names,
+      sentiment,
+      image_url
+    FROM news_df
+  """)
+
+  LOGGER.info("Created news_articles table with %s rows", len(news_df))
+
+  # Create indexes for better query performance
+  con.execute("CREATE INDEX IF NOT EXISTS idx_news_published ON news_articles(published_at)")
+  con.execute("CREATE INDEX IF NOT EXISTS idx_news_title ON news_articles(title)")
+
+  LOGGER.info("Created indexes on news_articles table")
+
+
 if __name__=="__main__":
-    generate_core_table()
-    generate_strategy_table()
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s"
+    )
+
+    print("=" * 60)
+    print("Database Ingestion to market.duckdb")
+    print("=" * 60)
+
+    # Market data (existing)
+    print("\n[1/2] Ingesting market data...")
+    # generate_core_table(con)
+    # generate_strategy_table(con)
+    print("✓ Market data ingested successfully")
+
+    # News data (new)
+    print("\n[2/2] Ingesting news data...")
+    generate_news_table(con)
+    print("✓ News data ingested successfully")
+
+    con.commit()
+    con.close()
+
+    print("\n" + "=" * 60)
+    print("All data ingested to: data/database/market.duckdb")
+    print("=" * 60)
+    print("\nTables created:")
+    print("  - assets")
+    print("  - candles")
+    print("  - divergence")
+    print("  - indicator_rules")
+    print("  - indicator_signals")
+    print("  - indicator_signal_summary")
+    print("  - strategies")
+    print("  - news_articles")
