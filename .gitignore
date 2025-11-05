@@ -4,6 +4,11 @@
 
 ### Data ###
 data/
+# But allow news data for GitHub Actions
+!data/raw_data/
+!data/raw_data/news/
+!data/raw_data/news/*.csv
+!data/raw_data/news/*.pkl
 ### CUDA ###
 *.i
 *.ii
