@@ -2,6 +2,10 @@
 import os
 import sys
 import logging
+import argparse
+from pathlib import Path
+
+import duckdb
 import pandas as pd
 from tqdm import tqdm
 
@@ -20,6 +24,18 @@ from src.data_scripts.core.indicator_signals import (
     summarize_indicator_signals,
 )
 from src.data_scripts.strategy import build_strategy_catalog
+from src.data_scripts.core.data_fetcher import (
+    DataFetcher,
+    _find_latest_dataset_dir,
+    _infer_start_time_from_data,
+)
+import src.data_scripts.database.injest_to_duckdb as injest_db
+
+if getattr(injest_db, "con", None) is not None:
+    try:
+        injest_db.con.close()
+    except Exception:
+        pass
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,6 +47,24 @@ asset_id_hashmap = {
     'btc': 1, 'eth': 2, 'xrp': 3, 'sol': 4, 'doge': 5, 'ada': 6, 'link': 7,
     'avax': 8, 'xlm': 9, 'hbar': 10, 'apt': 11, 'ondo': 12, 'sui': 13
 }
+
+SYMBOLS = [
+    "BTC/USDT",
+    "ETH/USDT",
+    "XRP/USDT",
+    "SOL/USDT",
+    "DOGE/USDT",
+    "ADA/USDT",
+    "LINK/USDT",
+    "AVAX/USDT",
+    "XLM/USDT",
+    "HBAR/USDT",
+    "APT/USDT",
+    "ONDO/USDT",
+    "SUI/USDT",
+]
+
+TIMEFRAMES = ['5m', '15m', '30m', '1h', '4h', '1d']
 
 divergence_detector = DivergenceDetector()
 
@@ -92,28 +126,92 @@ def process_one_file(filepath: str) -> pd.DataFrame:
 
     return df, divergence_df
 
-@timeit("main")
-def main():
-    # 1) read raw data
+
+def parse_cli_args():
+    parser = argparse.ArgumentParser(
+        description="terminalC data orchestration entry point."
+    )
+    parser.add_argument(
+        "--fetch-candle-data",
+        dest="fetch_candle_data",
+        action="store_true",
+        help="Fetch new OHLCV data and rebuild derived candle artifacts.",
+    )
+    parser.add_argument(
+        "--update-candle-database",
+        dest="update_candle_databse",
+        action="store_true",
+        help="Ingest the latest processed candle data into DuckDB.",
+    )
+    parser.add_argument(
+        "--fetch-news-data",
+        dest="fetch_news_data",
+        action="store_true",
+        help="Run the CoinDesk RSS scraper to pull the latest news dataset.",
+    )
+    parser.add_argument(
+        "--update-news-data",
+        dest="update_news_data",
+        action="store_true",
+        help="Ingest the latest scraped news dataset into DuckDB.",
+    )
+    return parser.parse_args()
+
+
+def resolve_candle_dataset_root() -> Path:
+    base_path = Path(DATA_PATH)
+    dataset_root = _find_latest_dataset_dir(base_path)
+    if dataset_root is None:
+        raise FileNotFoundError(
+            f"No candle dataset directory found under {base_path}. "
+            "Run data_fetcher.py with --start-date to bootstrap the dataset."
+        )
+    return dataset_root
+
+
+def fetch_candle_data(dataset_root: Path) -> None:
+    dataset_root = dataset_root.resolve()
+    logging.info("Fetching candle data into %s", dataset_root)
+    start_time = _infer_start_time_from_data(dataset_root, SYMBOLS, TIMEFRAMES)
+    if start_time is None:
+        raise RuntimeError(
+            f"Unable to infer start time from data in {dataset_root}. "
+            "Ensure at least one timeframe CSV exists or provide a manual start date via data_fetcher.py."
+        )
+    logging.info("Next fetch window starts at %s UTC", start_time)
+    data_fetcher = DataFetcher()
+    for symbol in SYMBOLS:
+        symbol_dir = dataset_root / symbol.split("/")[0].lower()
+        data_fetcher.fetch_and_save_all_data(
+            symbol,
+            TIMEFRAMES,
+            since=start_time,
+            output_dir=str(symbol_dir)
+        )
+
+
+def process_candle_dataset(dataset_root: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+    dataset_root = dataset_root.resolve()
     csv_files = []
-    for root, dirs, files in os.walk(os.path.join(DATA_PATH, "240815")):
+    for root, _, files in os.walk(str(dataset_root)):
         for file in files:
             if file.lower().endswith(".csv"):
-                abs_path = os.path.join(root, file)
-                csv_files.append(abs_path)
+                csv_files.append(os.path.join(root, file))
+
+    if not csv_files:
+        logging.warning("No CSV files found under %s. Skipping candle processing.", dataset_root)
+        return pd.DataFrame(), pd.DataFrame()
 
     total_candle_df = pd.DataFrame()
     total_divergence_df = pd.DataFrame()
 
-    # 2) preprocess + divergence
-    for filepath in tqdm(csv_files, desc="processing files"):
+    for filepath in tqdm(sorted(csv_files), desc="processing files"):
         candle_df, divergence_df = process_one_file(filepath)
         candle_df['asset_id'] = candle_df['coin'].apply(lambda x: asset_id_hashmap[x.lower()])
         candle_df = candle_df[['asset_id'] + [c for c in candle_df.columns if c != 'asset_id']]
         total_candle_df = pd.concat([total_candle_df, candle_df], ignore_index=True)
         total_divergence_df = pd.concat([total_divergence_df, divergence_df], ignore_index=True)
 
-    # 3) save final
     with timer("save_final_artifacts"):
         candle_final_path = os.path.join(PROJECT_PATH, 'data', 'processed', 'final_candle.pickle')
         os.makedirs(os.path.dirname(candle_final_path), exist_ok=True)
@@ -134,6 +232,79 @@ def main():
         strategy_df = build_strategy_catalog()
         strategy_path = os.path.join(PROJECT_PATH, 'data', 'processed', 'final_strategies.pickle')
         strategy_df.to_pickle(strategy_path)
+
+    return total_candle_df, total_divergence_df
+
+
+def run_coindesk_scraper():
+    logging.info("Running CoinDesk RSS scraper...")
+    import src.data_scripts.web.coindesk_scraper as coindesk_scraper
+
+    original_argv = sys.argv[:]
+    try:
+        sys.argv = [original_argv[0]]
+        coindesk_scraper.main()
+    finally:
+        sys.argv = original_argv
+
+
+def _connect_duckdb():
+    database_dir = Path(PROJECT_PATH) / 'data' / 'database'
+    database_dir.mkdir(parents=True, exist_ok=True)
+    db_path = database_dir / 'market.duckdb'
+    return duckdb.connect(str(db_path))
+
+
+def update_candle_database():
+    logging.info("Updating DuckDB candle tables...")
+    con = _connect_duckdb()
+    try:
+        injest_db.generate_core_table(con)
+        con.commit()
+    finally:
+        con.close()
+
+
+def update_news_database():
+    logging.info("Updating DuckDB news table...")
+    con = _connect_duckdb()
+    try:
+        injest_db.generate_news_table(con)
+        con.commit()
+    finally:
+        con.close()
+
+@timeit("main")
+def main():
+    args = parse_cli_args()
+    actions_requested = any([
+        args.fetch_candle_data,
+        args.update_candle_databse,
+        args.fetch_news_data,
+        args.update_news_data,
+    ])
+
+    if not actions_requested:
+        logging.info("No actions requested. Use --help to see available options.")
+        return
+
+    if args.fetch_candle_data:
+        try:
+            dataset_root = resolve_candle_dataset_root()
+            fetch_candle_data(dataset_root)
+            process_candle_dataset(dataset_root)
+        except Exception:
+            logging.exception("Candle data workflow failed.")
+            raise
+
+    if args.update_candle_databse:
+        update_candle_database()
+
+    if args.fetch_news_data:
+        run_coindesk_scraper()
+
+    if args.update_news_data:
+        update_news_database()
 
 
 if __name__ == "__main__":

@@ -378,7 +378,7 @@ if __name__ == "__main__":
         if manual_start is None:
             parser.error("No dataset directory found. Provide --start-date to bootstrap a new dataset.")
         date_token = manual_start.strftime('%y%m%d')
-        dataset_root = base_data_path / f'candle_since_{date_token}'
+        dataset_root = base_data_path / f'candle'
     if not dataset_root.exists():
         dataset_root.mkdir(parents=True, exist_ok=True)
 
