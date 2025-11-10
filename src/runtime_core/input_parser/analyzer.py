@@ -123,7 +123,9 @@ class InputAnalyzer:
         "volume": {"volume", "liquidity", "flow"},
         "volatility": {"volatility", "vol", "risk"},
         "signal": {"signal", "indicator", "overall_signal"},
+        "signal_detail": {"indicator signal", "detailed signal", "indicator_signals"},
         "news_sentiment": {"sentiment", "headline", "news"},
+        "divergence": {"divergence", "diverging"},
     }
 
     _STRATEGY_TOPICS = {
@@ -187,6 +189,20 @@ class InputAnalyzer:
         "sui": "SUI"
     }
 
+    _TIMEFRAME_PATTERN = re.compile(r"(\d+)\s*(m|min|minute|minutes|h|hr|hour|hours|d|day|days|w|week|weeks)")
+    _FIXED_TIMEFRAMES: Mapping[str, str] = {
+        "15m": "15m",
+        "30m": "30m",
+        "45m": "45m",
+        "1h": "1h",
+        "4h": "4h",
+        "12h": "12h",
+        "1d": "1d",
+        "daily": "1d",
+        "1w": "1w",
+        "weekly": "1w",
+    }
+
     def __init__(self, fallback_intent: str = "generic_query", threshold: float = 0.4) -> None:
         self._fallback_intent = fallback_intent
         self._threshold = threshold
@@ -209,6 +225,7 @@ class InputAnalyzer:
     def _extract_slots(self, prompt: str, normalized: str) -> IntentSlots:
         asset_scope = self._extract_assets(normalized)
         time_scope = self._extract_time_scope(normalized)
+        timeframe = self._extract_timeframe(normalized)
         metrics = self._extract_metrics(normalized)
         strategy_topics = self._extract_strategy_topics(normalized)
         news_filters = self._extract_news_filters(normalized)
@@ -216,6 +233,7 @@ class InputAnalyzer:
         return IntentSlots(
             asset_scope=asset_scope,
             time_scope=time_scope,
+            timeframe=timeframe,
             metrics=metrics,
             strategy_topics=strategy_topics,
             news_filters=news_filters,
@@ -291,6 +309,35 @@ class InputAnalyzer:
                 seen.add(iso)
 
         return dates
+
+    def _extract_timeframe(self, normalized: str) -> str | None:
+        for fixed, canonical in self._FIXED_TIMEFRAMES.items():
+            if fixed in normalized:
+                return canonical
+        match = self._TIMEFRAME_PATTERN.search(normalized)
+        if match:
+            value, unit = match.groups()
+            value = int(value)
+            unit = unit.lower()
+            if unit.startswith("m"):
+                return f"{value}m"
+            if unit.startswith("h"):
+                return f"{value}h"
+            if unit.startswith("d"):
+                return f"{value}d"
+            if unit.startswith("w"):
+                return f"{value}w"
+        minute_kor = re.search(r"(\d+)\s*분봉", normalized)
+        if minute_kor:
+            return f"{int(minute_kor.group(1))}m"
+        hour_kor = re.search(r"(\d+)\s*시간봉", normalized)
+        if hour_kor:
+            return f"{int(hour_kor.group(1))}h"
+        if "일봉" in normalized:
+            return "1d"
+        if "주봉" in normalized:
+            return "1w"
+        return None
 
     @staticmethod
     def _disambiguate_numeric(first: int, second: int) -> tuple[int, int]:
@@ -388,6 +435,8 @@ class InputAnalyzer:
             filters["end_date"] = slots.time_scope.end_date
         elif slots.time_scope.relative:
             filters["relative_range"] = slots.time_scope.relative
+        if slots.timeframe:
+            filters["timeframe"] = slots.timeframe
         return filters
 
     @staticmethod

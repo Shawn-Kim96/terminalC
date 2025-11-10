@@ -32,6 +32,7 @@ class NewsFilter:
 class IntentSlots:
     asset_scope: AssetScope = field(default_factory=AssetScope)
     time_scope: TimeScope = field(default_factory=TimeScope)
+    timeframe: str | None = None
     metrics: tuple[str, ...] = field(default_factory=tuple)
     strategy_topics: tuple[str, ...] = field(default_factory=tuple)
     news_filters: NewsFilter = field(default_factory=NewsFilter)
@@ -63,6 +64,7 @@ class QueryPlan:
     intent: Intent
     specs: Sequence[QuerySpec]
     generated_at: datetime = field(default_factory=datetime.utcnow)
+    plan_steps: Sequence[str] = field(default_factory=tuple)
 
 
 @dataclass(slots=True)
