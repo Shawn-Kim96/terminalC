@@ -291,7 +291,7 @@ def _find_latest_dataset_dir(base_path: Path) -> Optional[Path]:
     if not base_path.exists():
         return None
     candidates = sorted(
-        [d for d in base_path.iterdir() if d.is_dir() and d.name.startswith('candle_since_')],
+        [d for d in base_path.iterdir() if d.is_dir() and d.name.startswith('candle')],
         key=lambda path: path.name,
         reverse=True,
     )

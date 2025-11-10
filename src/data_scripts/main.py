@@ -134,24 +134,28 @@ def parse_cli_args():
     parser.add_argument(
         "--fetch-candle-data",
         dest="fetch_candle_data",
+        default=True,
         action="store_true",
         help="Fetch new OHLCV data and rebuild derived candle artifacts.",
     )
     parser.add_argument(
         "--update-candle-database",
         dest="update_candle_databse",
+        default=True,
         action="store_true",
         help="Ingest the latest processed candle data into DuckDB.",
     )
     parser.add_argument(
         "--fetch-news-data",
         dest="fetch_news_data",
+        default=True,
         action="store_true",
         help="Run the CoinDesk RSS scraper to pull the latest news dataset.",
     )
     parser.add_argument(
         "--update-news-data",
         dest="update_news_data",
+        default=True,
         action="store_true",
         help="Ingest the latest scraped news dataset into DuckDB.",
     )

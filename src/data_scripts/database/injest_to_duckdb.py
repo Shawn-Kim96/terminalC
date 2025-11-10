@@ -159,29 +159,19 @@ if __name__=="__main__":
     print("Database Ingestion to market.duckdb")
     print("=" * 60)
 
-    # Market data (existing)
+    # ================
+    # 1. Market data
+    # ================
     print("\n[1/2] Ingesting market data...")
     # generate_core_table(con)
     # generate_strategy_table(con)
-    print("✓ Market data ingested successfully")
 
-    # News data (new)
+    # ================
+    # 2. News data
+    # ================
     print("\n[2/2] Ingesting news data...")
     generate_news_table(con)
     print("✓ News data ingested successfully")
 
     con.commit()
     con.close()
-
-    print("\n" + "=" * 60)
-    print("All data ingested to: data/database/market.duckdb")
-    print("=" * 60)
-    print("\nTables created:")
-    print("  - assets")
-    print("  - candles")
-    print("  - divergence")
-    print("  - indicator_rules")
-    print("  - indicator_signals")
-    print("  - indicator_signal_summary")
-    print("  - strategies")
-    print("  - news_articles")
