@@ -332,7 +332,9 @@ class InputAnalyzer:
         return tuple(sorted(set(flags)))
 
     def _decide_intent(self, normalized: str, slots: IntentSlots) -> tuple[str, float]:
-        votes: list[str] = []
+        """Basic intent selection: pick the domain with the most keyword hits."""
+
+        votes = []
         if self._contains_any(normalized, self._MARKET_KEYWORDS):
             votes.append(self.INTENT_MARKET)
         if self._contains_any(normalized, self._STRATEGY_KEYWORDS) or slots.strategy_topics:
@@ -343,32 +345,21 @@ class InputAnalyzer:
         if not votes:
             return self._fallback_intent, self._threshold
 
-        unique_votes = []
-        for vote in votes:
-            if vote not in unique_votes:
-                unique_votes.append(vote)
+        intents = list(dict.fromkeys(votes))  # preserve order, remove duplicates
 
-        if len(unique_votes) > 1:
-            confidence = min(0.9, 0.6 + 0.08 * len(unique_votes))
-            return self.INTENT_MULTI, confidence
+        if len(intents) > 1:
+            return self.INTENT_MULTI, 0.7
 
-        intent = unique_votes[0]
-        base_conf = 0.6
-        if intent == self.INTENT_STRATEGY:
-            base_conf = 0.65
-        elif intent == self.INTENT_NEWS:
-            base_conf = 0.62
-        bonus = 0.0
+        intent = intents[0]
+        confidence = 0.6
         if slots.asset_scope.symbols:
-            bonus += 0.1
+            confidence += 0.1
         if slots.time_scope.start_date or slots.time_scope.relative:
-            bonus += 0.08
+            confidence += 0.1
         if slots.metrics:
-            bonus += min(0.12, 0.04 * len(slots.metrics))
-        if intent == self.INTENT_NEWS and (slots.news_filters.categories or slots.news_filters.sentiments):
-            bonus += 0.05
-        confidence = min(0.95, base_conf + bonus)
-        return intent, confidence
+            confidence += 0.05
+
+        return intent, min(confidence, 0.9)
 
     def _build_filters(self, slots: IntentSlots) -> Mapping[str, Any]:
         filters: dict[str, Any] = {}
@@ -385,6 +376,3 @@ class InputAnalyzer:
     @staticmethod
     def _contains_any(text: str, keywords: set[str]) -> bool:
         return any(keyword in text for keyword in keywords)
-
-
-__all__ = ["InputAnalyzer"]
