@@ -89,16 +89,24 @@ class InputAnalyzer:
         "decrease",
         "divergence",
         "signal",
+        "return",
+        "returns",
+        "performance",
     }
 
     _STRATEGY_KEYWORDS = {
         "strategy",
+        "strategies",
+        "startegy",
+        "startegies",
         "rule",
         "entry",
         "exit",
         "indicator",
         "setup",
         "playbook",
+        "technical",
+        "trading plan",
     }
 
     _NEWS_KEYWORDS = {
@@ -111,7 +119,7 @@ class InputAnalyzer:
     }
 
     _METRIC_KEYWORDS = {
-        "price": {"price", "close", "trend", "candle", "candlestick"},
+        "price": {"price", "close", "trend", "candle", "candlestick", "return", "returns", "performance"},
         "volume": {"volume", "liquidity", "flow"},
         "volatility": {"volatility", "vol", "risk"},
         "signal": {"signal", "indicator", "overall_signal"},
@@ -235,7 +243,7 @@ class InputAnalyzer:
         dates = self._collect_dates(normalized)
         if dates:
             start = dates[0]
-            end = dates[1] if len(dates) > 1 else None
+            end = dates[1] if len(dates) > 1 else dates[0]
             return TimeScope(start_date=start, end_date=end, raw_text="explicit_dates")
 
         for phrase, label in self._RELATIVE_WINDOWS.items():
@@ -346,6 +354,15 @@ class InputAnalyzer:
             return self._fallback_intent, self._threshold
 
         intents = list(dict.fromkeys(votes))  # preserve order, remove duplicates
+
+        if (
+            self.INTENT_STRATEGY in intents
+            and self.INTENT_MARKET in intents
+            and not slots.metrics
+            and not slots.asset_scope.symbols
+            and not (slots.time_scope.start_date or slots.time_scope.relative)
+        ):
+            intents = [intent for intent in intents if intent != self.INTENT_MARKET]
 
         if len(intents) > 1:
             return self.INTENT_MULTI, 0.7
