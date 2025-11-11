@@ -10,7 +10,7 @@ PROJECT_DIR = os.path.join(os.path.abspath('.').split(PROJECT_NAME)[0], PROJECT_
 sys.path.append(PROJECT_DIR)
 
 from terminalc.runtime_core.models.runtime_models import LLMResult
-from terminalc.runtime_core.processor.pre_processor import SecurityScanner
+from terminalc.runtime_core.processor.security import SecurityScanner
 
 
 class LLMPostProcessor:

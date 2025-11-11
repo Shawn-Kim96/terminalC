@@ -19,8 +19,9 @@ from terminalc.runtime_core.pipelines.llm_client import (
     HuggingFaceInferenceClient,
     LocalTransformersClient,
 )
-from terminalc.runtime_core.postprocess.processor import LLMPostProcessor
-from terminalc.runtime_core.preprocess.security import PromptSecurityGuard
+from terminalc.runtime_core.processor.post_processor import LLMPostProcessor
+from terminalc.runtime_core.processor.self_reflection import SelfReflectionProcessor
+from terminalc.runtime_core.processor.pre_processor import PromptSecurityGuard
 from terminalc.runtime_core.prompt_builder.builder import PromptBuilder
 from terminalc.runtime_core.query_planner.planner import QueryOrchestrator
 
@@ -43,6 +44,7 @@ class RuntimePipeline:
         prompt_builder: PromptBuilder | None = None,
         post_processor: LLMPostProcessor | None = None,
         prompt_guard: PromptSecurityGuard | None = None,
+        self_reflector: SelfReflectionProcessor | None = None,
     ) -> None:
         self._config = config or load_runtime_config()
         self._model_type = model_type
@@ -58,6 +60,7 @@ class RuntimePipeline:
         self._prompt_builder = prompt_builder or PromptBuilder()
         self._post_processor = post_processor or LLMPostProcessor()
         self._prompt_guard = prompt_guard or PromptSecurityGuard()
+        self._self_reflector = self_reflector or SelfReflectionProcessor()
         self._duckdb = DuckDBClient(self._config.duckdb)
         self._query_cache = QueryCache(self._config.cache.query_cache_dir)
         self._prompt_cache = PromptCache(self._config.cache.prompt_cache_dir)
@@ -83,6 +86,11 @@ class RuntimePipeline:
             return cached
 
         llm_result = self._llm_client.generate(payload)
+        if self._self_reflector:
+            try:
+                llm_result = self._self_reflector.refine(self._llm_client, payload, llm_result)
+            except Exception:
+                pass
         processed = self._post_processor.process(llm_result.response_text, llm_result.model_name, llm_result.total_tokens)
         self._prompt_cache.store(prompt_key, processed)
         return processed
