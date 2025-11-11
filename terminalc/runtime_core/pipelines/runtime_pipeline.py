@@ -20,6 +20,7 @@ from terminalc.runtime_core.pipelines.llm_client import (
     LocalTransformersClient,
 )
 from terminalc.runtime_core.postprocess.processor import LLMPostProcessor
+from terminalc.runtime_core.preprocess.security import PromptSecurityGuard
 from terminalc.runtime_core.prompt_builder.builder import PromptBuilder
 from terminalc.runtime_core.query_planner.planner import QueryOrchestrator
 
@@ -41,6 +42,7 @@ class RuntimePipeline:
         planner: QueryOrchestrator | None = None,
         prompt_builder: PromptBuilder | None = None,
         post_processor: LLMPostProcessor | None = None,
+        prompt_guard: PromptSecurityGuard | None = None,
     ) -> None:
         self._config = config or load_runtime_config()
         self._model_type = model_type
@@ -55,11 +57,17 @@ class RuntimePipeline:
         self._planner = planner or QueryOrchestrator()
         self._prompt_builder = prompt_builder or PromptBuilder()
         self._post_processor = post_processor or LLMPostProcessor()
+        self._prompt_guard = prompt_guard or PromptSecurityGuard()
         self._duckdb = DuckDBClient(self._config.duckdb)
         self._query_cache = QueryCache(self._config.cache.query_cache_dir)
         self._prompt_cache = PromptCache(self._config.cache.prompt_cache_dir)
 
     def run(self, prompt: str, instruction: str | None = None, template_id: str = "market_default") -> LLMResult:
+        if self._prompt_guard:
+            notice = self._prompt_guard.enforce(prompt)
+            if notice:
+                return LLMResult(response_text=notice, model_name="prompt_security_guard", total_tokens=None)
+
         if self._llm_client is None:
             raise RuntimeError("LLM client is not initialized. Provide model_type or llm_client.")
 
