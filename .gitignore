@@ -4,8 +4,8 @@
 
 ### Data ###
 data/
-src/runtime_core/cache/prompt
-src/runtime_core/cache/query
+terminalc/runtime_core/cache/prompt
+terminalc/runtime_core/cache/query
 models/
 # But allow news data for GitHub Actions
 !data/raw_data/
