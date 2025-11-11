@@ -4,6 +4,9 @@
 
 ### Data ###
 data/
+src/runtime_core/cache/prompt
+src/runtime_core/cache/query
+models/
 # But allow news data for GitHub Actions
 !data/raw_data/
 !data/raw_data/news/
