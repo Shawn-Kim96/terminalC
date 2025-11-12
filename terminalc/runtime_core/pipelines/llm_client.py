@@ -16,7 +16,7 @@ from terminalc.runtime_core.models.runtime_models import LLMResult, PromptPayloa
 
 
 class HuggingFaceInferenceClient:
-    """Thin wrapper around the Hugging Face text generation inference API."""
+    """Wrapper around the Hugging Face router chat completions API."""
 
     def __init__(
         self,
@@ -24,8 +24,10 @@ class HuggingFaceInferenceClient:
         api_token: str | None = None,
         timeout: int = 60,
         max_new_tokens: int = 512,
+        base_url: str = "https://router.huggingface.co/v1/chat/completions",
     ) -> None:
-        self._endpoint = f"https://api-inference.huggingface.co/models/{model_id}"
+        self._endpoint = base_url
+        self._model_id = model_id
         self._api_token = api_token or os.getenv("HUGGINGFACE_TOKEN")
         if not self._api_token:
             raise EnvironmentError("HUGGINGFACE_TOKEN is not set")
@@ -34,16 +36,31 @@ class HuggingFaceInferenceClient:
 
     def generate(self, payload: PromptPayload) -> LLMResult:
         headers = {"Authorization": f"Bearer {self._api_token}"}
+        body = {
+            "model": self._model_id,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": payload.instructions,
+                }
+            ],
+            "max_tokens": self._max_new_tokens,
+        }
         response = requests.post(
             self._endpoint,
             headers=headers,
-            json={"inputs": payload.instructions, "parameters": {"max_new_tokens": self._max_new_tokens}},
+            json=body,
             timeout=self._timeout,
         )
         response.raise_for_status()
-        data: list[dict[str, Any]] = response.json()
-        text = data[0].get("generated_text") if data else response.text
-        return LLMResult(response_text=text or "", model_name=self._endpoint, total_tokens=None)
+        data: dict[str, Any] = response.json()
+        choices = data.get("choices", [])
+        if choices:
+            message = choices[0].get("message") or {}
+            text = message.get("content", "")
+        else:
+            text = data.get("error", {}).get("message", "")
+        return LLMResult(response_text=text or "", model_name=self._model_id, total_tokens=data.get("usage", {}).get("total_tokens"))
 
 
 class LocalTransformersClient:

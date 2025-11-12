@@ -2,6 +2,7 @@
 from __future__ import annotations
 from typing import Mapping, Sequence
 import pandas as pd
+from pandas.api.types import is_datetime64_any_dtype
 import os
 import sys
 
@@ -67,6 +68,26 @@ class PromptBuilder:
 
     @staticmethod
     def _format_snapshot(snapshot: DataSnapshot) -> str:
-        df: pd.DataFrame = snapshot.payload
+        df = PromptBuilder._prepare_dataframe(snapshot.payload)
         preview = df.head(10)
         return f"# {snapshot.spec.table} (rows={snapshot.row_count})\n{preview.to_markdown(index=False)}"
+
+    @staticmethod
+    def _prepare_dataframe(frame: pd.DataFrame) -> pd.DataFrame:
+        df = frame.copy()
+        for column in df.columns:
+            series = df[column]
+            if is_datetime64_any_dtype(series):
+                try:
+                    if getattr(series.dt, "tz", None) is not None:
+                        df[column] = series.dt.tz_convert("UTC")
+                    else:
+                        df[column] = series.dt.tz_localize("UTC")
+                except (TypeError, ValueError):
+                    continue
+        if {"open", "close"}.issubset(df.columns):
+            with pd.option_context("mode.use_inf_as_na", True):
+                returns = df["close"] - df["open"]
+                df["return_abs"] = returns
+                df["return_pct"] = (returns / df["open"]) * 100
+        return df

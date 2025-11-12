@@ -123,7 +123,7 @@ class RuntimePipeline:
             if not endpoint:
                 raise ValueError("SMALL_MODEL_ENDPOINT is not configured.")
             local_root = models_cfg.local_model_dir
-            model_path = (local_root / endpoint.replace("/", os.sep)).resolve()
+            model_path = os.path.join(local_root, endpoint.replace("/", os.sep)).resolve()
             if not model_path.exists():
                 model_path = (local_root / endpoint).resolve()
             return LocalTransformersClient(model_path)
