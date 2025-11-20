@@ -56,7 +56,7 @@ def load_runtime_config() -> RuntimeConfig:
 
     data_dir = os.path.join(PROJECT_DIR, os.getenv("TERMINALC_DATA_SUB_DIR"))
     cache_base_dir = os.path.join(PROJECT_DIR, os.getenv("TERMINALC_CACHE_SUB_DIR"))
-    models_dir = os.path.join(PROJECT_DIR, os.getenv("TERMINALC_MODELS_SUB_DIR"))
+    models_dir = Path(os.path.join(PROJECT_DIR, os.getenv("TERMINALC_MODELS_SUB_DIR")))
 
     duckdb_config = DuckDBConfig(
         database_path=Path(
@@ -73,7 +73,7 @@ def load_runtime_config() -> RuntimeConfig:
     model_config = ModelConfig(
         large_model_endpoint=os.getenv("LARGE_MODEL_ENDPOINT"),
         small_model_endpoint=os.getenv("SMALL_MODEL_ENDPOINT", "sentence-transformers/all-MiniLM-L6-v2"),
-        local_model_dir=models_dir,
+        local_model_dir=models_dir.resolve(),
         huggingface_token=os.getenv("HUGGINGFACE_TOKEN"),
     )
 

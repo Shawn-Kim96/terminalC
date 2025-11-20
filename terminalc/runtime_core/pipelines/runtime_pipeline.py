@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Literal, Protocol, Sequence
 import os
 import sys
+from pathlib import Path
 
 PROJECT_NAME = "terminalC"
 PROJECT_DIR = os.path.join(os.path.abspath('.').split(PROJECT_NAME)[0], PROJECT_NAME)
@@ -123,9 +124,15 @@ class RuntimePipeline:
             if not endpoint:
                 raise ValueError("SMALL_MODEL_ENDPOINT is not configured.")
             local_root = models_cfg.local_model_dir
-            model_path = os.path.join(local_root, endpoint.replace("/", os.sep)).resolve()
+            local_root_path = local_root if isinstance(local_root, Path) else Path(local_root)
+            candidate = local_root_path / endpoint.replace("/", os.sep)
+            model_path = candidate if candidate.exists() else local_root_path / endpoint
+            model_path = model_path.resolve()
             if not model_path.exists():
-                model_path = (local_root / endpoint).resolve()
-            return LocalTransformersClient(model_path)
+                raise FileNotFoundError(
+                    f"Local model path '{model_path}' does not exist. "
+                    "Download the model or update SMALL_MODEL_ENDPOINT."
+                )
+            return LocalTransformersClient(str(model_path))
 
         raise ValueError(f"Unsupported model_type '{model_type}'.")
