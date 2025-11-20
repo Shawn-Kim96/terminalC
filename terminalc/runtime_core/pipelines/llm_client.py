@@ -36,6 +36,9 @@ class HuggingFaceInferenceClient:
 
     def generate(self, payload: PromptPayload) -> LLMResult:
         headers = {"Authorization": f"Bearer {self._api_token}"}
+        if self._model_id.split(':')[-1] != "cheapest":
+            self._model_id += ":cheapest"
+    
         body = {
             "model": self._model_id,
             "messages": [
