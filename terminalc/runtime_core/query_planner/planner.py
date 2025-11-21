@@ -51,6 +51,18 @@ class QueryOrchestrator:
             "indicator_rules": 200,
             "strategies": 200,
         }
+        self._news_symbol_tags: Mapping[str, tuple[str, ...]] = {
+            "BTC": ("Bitcoin", "BTC"),
+            "ETH": ("Ethereum", "Ether", "ETH"),
+            "SOL": ("Solana", "SOL"),
+            "XRP": ("XRP", "Ripple"),
+            "DOGE": ("Dogecoin", "DOGE"),
+            "ADA": ("Cardano", "ADA"),
+            "DOT": ("Polkadot", "DOT"),
+            "AVAX": ("Avalanche", "AVAX"),
+            "MATIC": ("Polygon", "MATIC"),
+            "LINK": ("Chainlink", "LINK"),
+        }
 
         self._intent_routes: Mapping[
             str,
@@ -273,7 +285,7 @@ class QueryOrchestrator:
         filters: dict[str, Any] = {}
         symbols = base_context.get("symbols")
         if symbols:
-            filters["tags"] = symbols
+            filters["tag_names"] = self._news_tag_filters(symbols)
         start, end = base_context.get("time_window", (None, None))
         if not start and not end:
             start, end = self._default_news_window()
@@ -305,6 +317,14 @@ class QueryOrchestrator:
             context["timeframe"] = slots.timeframe
 
         return context
+
+    def _news_tag_filters(self, symbols: Sequence[str]) -> tuple[str, ...]:
+        tokens: list[str] = []
+        for symbol in symbols:
+            upper = symbol.upper()
+            tokens.extend(self._news_symbol_tags.get(upper, (upper,)))
+        unique = sorted({token.strip() for token in tokens if token.strip()})
+        return tuple(f"%{token}%" for token in unique)
 
     @staticmethod
     def _resolve_time_window(time_scope) -> tuple[str | None, str | None]:

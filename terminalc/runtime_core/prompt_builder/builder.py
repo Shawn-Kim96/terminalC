@@ -86,8 +86,9 @@ class PromptBuilder:
                 except (TypeError, ValueError):
                     continue
         if {"open", "close"}.issubset(df.columns):
-            with pd.option_context("mode.use_inf_as_na", True):
-                returns = df["close"] - df["open"]
-                df["return_abs"] = returns
-                df["return_pct"] = (returns / df["open"]) * 100
+            import numpy as np
+            returns = df["close"] - df["open"]
+            df["return_abs"] = returns
+            df["return_pct"] = (returns / df["open"]) * 100
+            df.replace([np.inf, -np.inf], np.nan, inplace=True)
         return df

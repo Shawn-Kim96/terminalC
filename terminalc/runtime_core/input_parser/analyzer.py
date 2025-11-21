@@ -119,7 +119,24 @@ class InputAnalyzer:
     }
 
     _METRIC_KEYWORDS = {
-        "price": {"price", "close", "trend", "candle", "candlestick", "return", "returns", "performance"},
+        "price": {
+            "price",
+            "close",
+            "trend",
+            "candle",
+            "candlestick",
+            "return",
+            "returns",
+            "performance",
+            "invest",
+            "investment",
+            "allocate",
+            "allocation",
+            "capital",
+            "portfolio",
+            "deploy",
+            "distribute",
+        },
         "volume": {"volume", "liquidity", "flow"},
         "volatility": {"volatility", "vol", "risk"},
         "signal": {"signal", "indicator", "overall_signal"},
@@ -189,7 +206,7 @@ class InputAnalyzer:
         "sui": "SUI"
     }
 
-    _TIMEFRAME_PATTERN = re.compile(r"(\d+)\s*(m|min|minute|minutes|h|hr|hour|hours|d|day|days|w|week|weeks)")
+    _TIMEFRAME_PATTERN = re.compile(r"(\d+)\s*(m|min|minute|minutes|h|hr|hour|hours|d|day|days|w|week|weeks)\b")
     _FIXED_TIMEFRAMES: Mapping[str, str] = {
         "15m": "15m",
         "30m": "30m",
@@ -260,8 +277,9 @@ class InputAnalyzer:
     def _extract_time_scope(self, normalized: str) -> TimeScope:
         dates = self._collect_dates(normalized)
         if dates:
-            start = dates[0]
-            end = dates[1] if len(dates) > 1 else dates[0]
+            ordered = sorted(dates)
+            start = ordered[0]
+            end = ordered[1] if len(ordered) > 1 else ordered[0]
             return TimeScope(start_date=start, end_date=end, raw_text="explicit_dates")
 
         for phrase, label in self._RELATIVE_WINDOWS.items():

@@ -103,6 +103,9 @@ class DuckDBClient:
             if key.endswith("_end"):
                 return 4, key
             return 5, key
+        def is_like_value(val: Any) -> bool:
+            return isinstance(val, str) and "%" in val
+
         for key in sorted(spec.filters.keys(), key=filter_sort_key):
             value = spec.filters[key]
             if value is None:
@@ -114,6 +117,33 @@ class DuckDBClient:
                 placeholder = bind(param_name, value)
                 where_clause.append(f"{column} {operator} {placeholder}")
                 continue
+
+            if isinstance(value, str) and is_like_value(value):
+                param_name = next_param(key)
+                placeholder = bind(param_name, value)
+                where_clause.append(f"{key} ILIKE {placeholder}")
+                continue
+
+            if isinstance(value, (list, tuple, set)) and value:
+                like_values = [v for v in value if is_like_value(v)]
+                normal_values = [v for v in value if not is_like_value(v)]
+                if like_values:
+                    comparisons = []
+                    for i, val in enumerate(like_values):
+                        param_name = next_param(f"{key}_{i}")
+                        placeholder = bind(param_name, val)
+                        comparisons.append(f"{key} ILIKE {placeholder}")
+                    like_clause = "(" + " OR ".join(comparisons) + ")"
+                    if normal_values:
+                        placeholders = []
+                        for i, val in enumerate(normal_values):
+                            holder = next_param(f"{key}_eq_{i}")
+                            placeholders.append(bind(holder, val))
+                        equality_clause = f"{key} IN ({', '.join(placeholders)})"
+                        where_clause.append(f"({like_clause} OR {equality_clause})")
+                    else:
+                        where_clause.append(like_clause)
+                    continue
 
             if isinstance(value, (list, tuple, set)):
                 placeholders = []
