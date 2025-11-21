@@ -80,11 +80,11 @@ def generate_dataset(output_file: str, num_samples: int = None):
         print(f"[{i+1}/{len(prompts)}] Processing: {prompt}")
         try:
             # Run pipeline
-            result = rp.run(prompt)
+            result, payload = rp.run(prompt, return_payload=True)
             
             # Create training example
             example = {
-                "prompt": prompt,
+                "prompt": payload.instructions,
                 "completion": result.response_text,
                 "model": result.model_name
             }

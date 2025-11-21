@@ -66,7 +66,13 @@ class RuntimePipeline:
         self._query_cache = QueryCache(self._config.cache.query_cache_dir)
         self._prompt_cache = PromptCache(self._config.cache.prompt_cache_dir)
 
-    def run(self, prompt: str, instruction: str | None = None, template_id: str = "market_default") -> LLMResult:
+    def run(
+        self,
+        prompt: str,
+        instruction: str | None = None,
+        template_id: str = "market_default",
+        return_payload: bool = False,
+    ) -> LLMResult | tuple[LLMResult, PromptPayload]:
         if self._prompt_guard:
             notice = self._prompt_guard.enforce(prompt)
             if notice:
@@ -84,7 +90,7 @@ class RuntimePipeline:
 
         cached = self._prompt_cache.get(prompt_key)
         if cached:
-            return cached
+            return (cached, payload) if return_payload else cached
 
         llm_result = self._llm_client.generate(payload)
         if self._self_reflector:
@@ -94,7 +100,7 @@ class RuntimePipeline:
                 pass
         processed = self._post_processor.process(llm_result.response_text, llm_result.model_name, llm_result.total_tokens)
         self._prompt_cache.store(prompt_key, processed)
-        return processed
+        return (processed, payload) if return_payload else processed
 
     def _query_execution(self, plan: QueryPlan) -> Sequence[DataSnapshot]:
         snapshots: list[DataSnapshot] = []
