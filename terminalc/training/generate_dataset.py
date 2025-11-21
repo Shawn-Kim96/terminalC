@@ -65,8 +65,7 @@ SEED_PROMPTS = [
 ]
 
 def generate_dataset(output_file: str, num_samples: int = None):
-    """Run prompts through the pipeline and save prompt-completion pairs."""
-    print(f"Initializing pipeline with Large Model...")
+    print(f"Initializing pipeline with Large Model")
     rp = RuntimePipeline(model_type="large")
     
     prompts = SEED_PROMPTS
@@ -74,15 +73,13 @@ def generate_dataset(output_file: str, num_samples: int = None):
         prompts = prompts[:num_samples]
 
     data = []
-    print(f"Generating data for {len(prompts)} prompts...")
+    print(f"Generating data for {len(prompts)} prompts")
     
     for i, prompt in enumerate(prompts):
         print(f"[{i+1}/{len(prompts)}] Processing: {prompt}")
         try:
-            # Run pipeline
             result, payload = rp.run(prompt, return_payload=True)
             
-            # Create training example
             example = {
                 "prompt": payload.instructions,
                 "completion": result.response_text,
@@ -93,7 +90,6 @@ def generate_dataset(output_file: str, num_samples: int = None):
         except Exception as e:
             print(f"Error processing prompt '{prompt}': {e}")
 
-    # Save to JSONL
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
