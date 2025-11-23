@@ -17,6 +17,9 @@ PROJECT_NAME = "terminalC"
 PROJECT_DIR = os.path.join(os.path.abspath(".").split(PROJECT_NAME)[0], PROJECT_NAME)
 sys.path.append(PROJECT_DIR)
 
+# Stream logs promptly (useful for sbatch)
+os.environ.setdefault("PYTHONUNBUFFERED", "1")
+
 
 def train_model(
     base_model_name: str,
@@ -117,12 +120,13 @@ def train_model(
         gradient_accumulation_steps=gradient_accumulation_steps,
         learning_rate=learning_rate,
         num_train_epochs=epochs,
-        logging_steps=10,
+        logging_strategy="epoch",  # log once per epoch for clean logs
         save_strategy="epoch",
         fp16=(device == "cuda"),
         bf16=False,
         use_mps_device=(device == "mps"),
         report_to="none",
+        disable_tqdm=False,  # keep progress bar visible in logs
     )
 
     # Trainer
