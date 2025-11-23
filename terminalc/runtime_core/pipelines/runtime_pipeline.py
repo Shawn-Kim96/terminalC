@@ -72,13 +72,14 @@ class RuntimePipeline:
         instruction: str | None = None,
         template_id: str = "market_default",
         return_payload: bool = False,
-    ) -> LLMResult | tuple[LLMResult, PromptPayload]:
+        build_only: bool = False,
+    ) -> LLMResult | tuple[LLMResult, PromptPayload] | PromptPayload:
         if self._prompt_guard:
             notice = self._prompt_guard.enforce(prompt)
             if notice:
                 return LLMResult(response_text=notice, model_name="prompt_security_guard", total_tokens=None)
 
-        if self._llm_client is None:
+        if self._llm_client is None and not build_only:
             raise RuntimeError("LLM client is not initialized. Provide model_type or llm_client.")
 
         intent = self._analyzer.analyze(prompt)
@@ -87,6 +88,9 @@ class RuntimePipeline:
         snapshots = self._query_execution(plan)
         payload = self._prompt_builder.build(plan, snapshots, instruction, template_id)
         prompt_key = self._prompt_cache.build_key(payload)
+
+        if build_only:
+            return payload if not return_payload else (None, payload)
 
         cached = self._prompt_cache.get(prompt_key)
         if cached:
@@ -101,6 +105,30 @@ class RuntimePipeline:
         processed = self._post_processor.process(llm_result.response_text, llm_result.model_name, llm_result.total_tokens)
         self._prompt_cache.store(prompt_key, processed)
         return (processed, payload) if return_payload else processed
+
+    def build_prompt(
+        self,
+        prompt: str,
+        instruction: str | None = None,
+        template_id: str = "market_default",
+    ) -> PromptPayload:
+        if self._prompt_guard:
+            notice = self._prompt_guard.enforce(prompt)
+            if notice:
+                # If blocked, return a minimal payload explaining the block
+                return PromptPayload(
+                    template_id=template_id,
+                    instructions=notice,
+                    context_blocks=(),
+                    metadata={"intent": "blocked", "user_instruction": prompt},
+                )
+
+        intent = self._analyzer.analyze(prompt)
+        plan = self._planner.build_plan(intent)
+        instruction = instruction or prompt
+        snapshots = self._query_execution(plan)
+        payload = self._prompt_builder.build(plan, snapshots, instruction, template_id)
+        return payload
 
     def _query_execution(self, plan: QueryPlan) -> Sequence[DataSnapshot]:
         snapshots: list[DataSnapshot] = []

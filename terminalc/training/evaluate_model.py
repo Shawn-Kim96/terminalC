@@ -11,6 +11,9 @@ PROJECT_NAME = "terminalC"
 PROJECT_DIR = os.path.join(os.path.abspath('.').split(PROJECT_NAME)[0], PROJECT_NAME)
 sys.path.append(PROJECT_DIR)
 
+from terminalc.runtime_core.pipelines.runtime_pipeline import RuntimePipeline
+
+
 TEST_PROMPTS = [
     # Market Data
     "What was the closing price of BTC on Oct 15, 2025?",
@@ -82,10 +85,13 @@ def evaluate(base_model_name: str, adapter_path: str | None, log_file: str | Non
 
     model.eval()
 
+    # Build prompts through the pipeline to include context/templates
+    pipeline = RuntimePipeline(model_type=None)
     results = []
     print("\n=== Evaluation Results ===")
     for prompt in TEST_PROMPTS:
-        input_text = f"<|user|>\n{prompt}\n<|assistant|>\n"
+        payload = pipeline.run(prompt, build_only=True)
+        input_text = payload.instructions
         inputs = tokenizer(input_text, return_tensors="pt").to(device)
 
         with torch.no_grad():
@@ -98,7 +104,7 @@ def evaluate(base_model_name: str, adapter_path: str | None, log_file: str | Non
 
         response = tokenizer.decode(outputs[0], skip_special_tokens=True)
         clean_resp = response.replace(input_text, "").strip()
-        results.append((prompt, clean_resp))
+        results.append((prompt, input_text, clean_resp))
         print(f"\nPrompt: {prompt}")
         print("-" * 20)
         print(clean_resp)
@@ -110,8 +116,10 @@ def evaluate(base_model_name: str, adapter_path: str | None, log_file: str | Non
             stamp = datetime.now().isoformat(timespec="seconds")
             header = f"# Eval log @ {stamp}\n# base_model={base_model_name}\n# adapter={adapter_path or 'none'}\n"
             f.write(header)
-            for prompt, resp in results:
-                f.write(f"\nPrompt: {prompt}\n{'-'*20}\n{resp}\n{'='*40}\n")
+            for prompt, full_prompt, resp in results:
+                f.write(f"\nPrompt: {prompt}\n{'-'*20}\n")
+                f.write(f"[Pipeline prompt]\n{full_prompt}\n")
+                f.write(f"[Model response]\n{resp}\n{'='*40}\n")
         print(f"\nSaved log to {log_file}")
 
 if __name__ == "__main__":

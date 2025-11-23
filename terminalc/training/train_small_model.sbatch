@@ -17,4 +17,4 @@ mkdir -p logs
 eval "$(conda shell.bash hook)"
 conda activate terminalc
 
-python terminalc/training/train_small_model.py --epochs 50
+python terminalc/training/train_small_model.py --epochs 100
