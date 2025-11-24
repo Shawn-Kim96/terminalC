@@ -1,7 +1,7 @@
 """High-level orchestration for the runtime system."""
 from __future__ import annotations
 
-from typing import Literal, Protocol, Sequence
+from typing import Any, Literal, Protocol, Sequence
 import os
 import sys
 from pathlib import Path
@@ -30,7 +30,11 @@ ModelType = Literal["large", "small"] | None
 
 
 class LLMClientProtocol(Protocol):
-    def generate(self, payload: PromptPayload) -> LLMResult:  # pragma: no cover - interface definition
+    def generate(
+        self,
+        payload: PromptPayload,
+        generation_kwargs: dict[str, Any] | None = None,
+    ) -> LLMResult:  # pragma: no cover - interface definition
         ...
 
 
@@ -73,7 +77,11 @@ class RuntimePipeline:
         template_id: str = "market_default",
         return_payload: bool = False,
         build_only: bool = False,
+        generation_kwargs: dict[str, Any] | None = None,
     ) -> LLMResult | tuple[LLMResult, PromptPayload] | PromptPayload:
+        if build_only and return_payload:
+            raise ValueError("build_only cannot be combined with return_payload.")
+
         if self._prompt_guard:
             notice = self._prompt_guard.enforce(prompt)
             if notice:
@@ -87,16 +95,17 @@ class RuntimePipeline:
         instruction = instruction or prompt
         snapshots = self._query_execution(plan)
         payload = self._prompt_builder.build(plan, snapshots, instruction, template_id)
-        prompt_key = self._prompt_cache.build_key(payload)
 
         if build_only:
-            return payload if not return_payload else (None, payload)
+            return payload
+
+        prompt_key = self._prompt_cache.build_key(payload)
 
         cached = self._prompt_cache.get(prompt_key)
         if cached:
             return (cached, payload) if return_payload else cached
 
-        llm_result = self._llm_client.generate(payload)
+        llm_result = self._llm_client.generate(payload, generation_kwargs=generation_kwargs)
         if self._self_reflector:
             try:
                 llm_result = self._self_reflector.refine(self._llm_client, payload, llm_result)
@@ -167,6 +176,10 @@ class RuntimePipeline:
                     f"Local model path '{model_path}' does not exist. "
                     "Download the model or update SMALL_MODEL_ENDPOINT."
                 )
-            return LocalTransformersClient(str(model_path))
+            adapter_path = models_cfg.small_model_adapter_dir
+            if adapter_path is None:
+                default_adapter = Path(PROJECT_DIR) / "models" / "small_model_lora"
+                adapter_path = default_adapter.resolve() if default_adapter.exists() else None
+            return LocalTransformersClient(str(model_path), adapter_path=str(adapter_path) if adapter_path else None)
 
         raise ValueError(f"Unsupported model_type '{model_type}'.")

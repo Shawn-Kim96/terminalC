@@ -40,6 +40,7 @@ class ModelConfig:
     small_model_endpoint: str | None
     local_model_dir: Path
     huggingface_token: str | None = None
+    small_model_adapter_dir: Path | None = None
 
 
 @dataclass(slots=True)
@@ -70,11 +71,24 @@ def load_runtime_config() -> RuntimeConfig:
         prompt_cache_dir=os.path.join(PROJECT_DIR, os.getenv("TERMINALC_CACHE_SUB_DIR"), "prompt")
     )
 
+    adapter_env = os.getenv("SMALL_MODEL_ADAPTER_DIR")
+    adapter_path: Path | None = None
+    if adapter_env:
+        candidate = Path(adapter_env)
+        if not candidate.is_absolute():
+            candidate = Path(PROJECT_DIR) / adapter_env
+        adapter_path = candidate.resolve()
+    else:
+        fallback = Path(PROJECT_DIR) / "models" / "small_model_lora"
+        if fallback.exists():
+            adapter_path = fallback.resolve()
+
     model_config = ModelConfig(
         large_model_endpoint=os.getenv("LARGE_MODEL_ENDPOINT"),
         small_model_endpoint=os.getenv("SMALL_MODEL_ENDPOINT", "sentence-transformers/all-MiniLM-L6-v2"),
         local_model_dir=models_dir.resolve(),
         huggingface_token=os.getenv("HUGGINGFACE_TOKEN"),
+        small_model_adapter_dir=adapter_path,
     )
 
     return RuntimeConfig(
