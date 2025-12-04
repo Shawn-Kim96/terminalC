@@ -178,6 +178,18 @@ class InputAnalyzer:
     }
 
     _PROMPT_CHAIN_MARKERS = {"overall", "combined", "holistic", "together"}
+    _LIVE_NEWS_MARKERS = {
+        "latest",
+        "breaking",
+        "recent",
+        "right now",
+        "today",
+        "current",
+        "just now",
+        "this morning",
+        "this evening",
+        "this hour",
+    }
 
     _SYMBOL_ALIASES = {
         "btc": "BTC",
@@ -402,7 +414,14 @@ class InputAnalyzer:
             if marker in normalized:
                 flags.append("needs_prompt_chaining")
                 break
+        if self._needs_live_news(normalized, news_filters):
+            flags.append("needs_live_news")
         return tuple(sorted(set(flags)))
+
+    def _needs_live_news(self, normalized: str, news_filters: NewsFilter) -> bool:
+        if "news" not in normalized and not news_filters.categories and not news_filters.sentiments:
+            return False
+        return any(marker in normalized for marker in self._LIVE_NEWS_MARKERS)
 
     def _decide_intent(self, normalized: str, slots: IntentSlots) -> tuple[str, float]:
         """Basic intent selection: pick the domain with the most keyword hits."""
