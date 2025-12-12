@@ -136,7 +136,20 @@ class LocalTransformersClient:
         if generation_kwargs:
             gen_kwargs.update(generation_kwargs)
         max_tokens = gen_kwargs.pop("max_new_tokens", gen_kwargs.pop("max_tokens", self._max_new_tokens))
-        inputs = self._tokenizer(payload.instructions, return_tensors="pt").to(self._device)
+
+        # Apply chat template if available (for instruct models like Llama 3.1)
+        if hasattr(self._tokenizer, 'chat_template') and self._tokenizer.chat_template:
+            messages = [{"role": "user", "content": payload.instructions}]
+            formatted_prompt = self._tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True
+            )
+        else:
+            formatted_prompt = payload.instructions
+
+        inputs = self._tokenizer(formatted_prompt, return_tensors="pt").to(self._device)
+        prompt_len = inputs["input_ids"].shape[1]
         with torch.no_grad():
             output_ids = self._model.generate(
                 **inputs,
@@ -144,7 +157,9 @@ class LocalTransformersClient:
                 pad_token_id=self._pad_token_id,
                 **gen_kwargs,
             )
-        text = self._tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        # Decode only the newly generated tokens so we don't echo the prompt
+        generated = output_ids[0][prompt_len:]
+        text = self._tokenizer.decode(generated, skip_special_tokens=True)
         model_id = f"{self._model_name} (adapter={self._adapter_path})" if self._adapter_path else self._model_name
         return LLMResult(response_text=text, model_name=model_id, total_tokens=None)
 
