@@ -74,7 +74,7 @@ class RuntimePipeline:
         self,
         prompt: str,
         instruction: str | None = None,
-        template_id: str = "market_default",
+        template_id: str | None = None,
         return_payload: bool = False,
         build_only: bool = False,
         generation_kwargs: dict[str, Any] | None = None,
