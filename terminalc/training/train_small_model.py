@@ -2,6 +2,7 @@
 import os
 import sys
 import argparse
+import csv
 import torch
 from datasets import load_dataset
 from transformers import (
@@ -10,6 +11,7 @@ from transformers import (
     TrainingArguments,
     Trainer,
     DataCollatorForLanguageModeling,
+    TrainerCallback,
 )
 from peft import LoraConfig, get_peft_model, TaskType
 
@@ -19,6 +21,31 @@ sys.path.append(PROJECT_DIR)
 
 # Stream logs promptly (useful for sbatch)
 os.environ.setdefault("PYTHONUNBUFFERED", "1")
+
+
+class LossLoggingCallback(TrainerCallback):
+    """Callback to log epoch and loss to a CSV file for plotting."""
+
+    def __init__(self, log_file: str):
+        self.log_file = log_file
+        self.losses = []
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        """Called when logging occurs."""
+        if logs and "loss" in logs:
+            epoch = logs.get("epoch", state.epoch)
+            loss = logs["loss"]
+            self.losses.append({"epoch": epoch, "loss": loss})
+            print(f"Epoch {epoch:.2f}: Loss = {loss:.4f}")
+
+    def on_train_end(self, args, state, control, **kwargs):
+        """Save all losses to CSV at the end of training."""
+        print(f"Saving loss history to {self.log_file}")
+        os.makedirs(os.path.dirname(self.log_file), exist_ok=True)
+        with open(self.log_file, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=["epoch", "loss"])
+            writer.writeheader()
+            writer.writerows(self.losses)
 
 
 def train_model(
@@ -85,12 +112,20 @@ def train_model(
     print(f"Loading dataset from {data_path}")
     dataset = load_dataset("json", data_files=data_path, split="train")
 
-    # Format function
+    # Format function using Llama 3.1's proper chat template
     def format_prompts(examples):
         texts = []
         for prompt, completion in zip(examples["prompt"], examples["completion"]):
-            # Simple chat format
-            text = f"<|user|>\n{prompt}\n<|assistant|>\n{completion}"
+            # Use the tokenizer's chat template for proper formatting
+            messages = [{"role": "user", "content": prompt}]
+            # Apply chat template with generation prompt to get properly formatted input
+            formatted_prompt = tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True
+            )
+            # Append completion and EOS token
+            text = formatted_prompt + completion + tokenizer.eos_token
             texts.append(text)
         return {"text": texts}
 
@@ -122,12 +157,18 @@ def train_model(
         num_train_epochs=epochs,
         logging_strategy="epoch",  # log once per epoch for clean logs
         save_strategy="epoch",
+        save_total_limit=3,  # only keep last 3 checkpoints to save storage
         fp16=(device == "cuda"),
         bf16=False,
         use_mps_device=(device == "mps"),
         report_to="none",
         disable_tqdm=False,  # keep progress bar visible in logs
+        load_best_model_at_end=False,
     )
+
+    # Setup loss logging callback
+    loss_log_file = os.path.join(output_dir, "training_loss.csv")
+    loss_callback = LossLoggingCallback(loss_log_file)
 
     # Trainer
     trainer = Trainer(
@@ -135,7 +176,20 @@ def train_model(
         args=training_args,
         train_dataset=tokenized_datasets,
         data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False),
+        callbacks=[loss_callback],
     )
+
+    # Verify loss calculation is using the correct approach
+    print("\n=== Training Configuration ===")
+    print(f"Dataset size: {len(tokenized_datasets)}")
+    print(f"Batch size: {batch_size}")
+    print(f"Gradient accumulation steps: {gradient_accumulation_steps}")
+    print(f"Effective batch size: {batch_size * gradient_accumulation_steps}")
+    print(f"Number of epochs: {epochs}")
+    print(f"Learning rate: {learning_rate}")
+    print(f"Loss will be logged to: {loss_log_file}")
+    print("Loss calculation: Standard Causal Language Modeling (next token prediction)")
+    print("==============================\n")
 
     # Train
     print("Starting training...")
