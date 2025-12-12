@@ -5,12 +5,18 @@
 \usepackage{tabularx}
 \usepackage{longtable}
 \usepackage{enumitem}
-\usepackage{hyperref}
 \usepackage{graphicx}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{listings}
 \usepackage{xcolor}
+\usepackage{hyperref}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=green!50!black
+}
 
 \setlength{\parskip}{0.75em}
 \setlength{\parindent}{0pt}
@@ -18,13 +24,13 @@
 
 \begin{document}
 
-\title{Terminal C: Crypto Research Assistant Final Report}
-\author{Su Hyun Kim (018219422)}
+\title{Terminal C: AI Agent for Crypto Investment Managers}
+\author{Su Hyun Kim (018219422)\\GitHub: \href{https://github.com/Shawn-Kim96/terminalC}{\textcolor{green!50!black}{github.com/Shawn-Kim96/terminalC}}}
 \date{\today}
 \maketitle
 
 \section{Objectives}
-Terminal C positions itself as a virtual research partner for investors who are tired of flipping between charting tabs, indicator sheets, social feeds, and news alerts just to answer a single question. Instead of overwhelming users with raw data, the assistant listens to natural queries (“Is BTC bullish today?”, “What headlines explain the AVAX drop?”), fetches the precise candles, indicator summaries, divergence flags, and curated CoinDesk articles involved, and then explains the findings in clear prose with citations. It is built for analysts who want a trustworthy second opinion that stays grounded in verifiable data while leaving trade execution and risk decisions in human hands.
+Terminal C is a virtual research partner for investors who are tired of flipping between charting tabs, indicator sheets, social feeds, and news alerts just to answer a single question. Rather than displaying raw data, the assistant iterprets to natural queries (“Is BTC bullish today?”, “What headlines explain the AVAX drop?”), fetches the precise candles, indicator summaries, divergence flags, and curated CoinDesk articles involved, and then explains the findings in clear prose with citations. It is built for analysts who want a trustworthy second opinion that stays grounded in verifiable data while leaving trade execution and risk decisions in human hands.
 
 \section{Use Cases and Queries}
 The assistant was validated on twenty functional prompts and five security adversarial prompts. They cover price lookups, indicator audits, comparative reasoning, news digests, and portfolio planning. Table~\ref{tab:queries} groups representative queries by intent and articulates the goal behind each.
@@ -84,7 +90,7 @@ Terminal C implements a layered retrieval augmented generation pipeline designed
 
 \noindent \textbf{Prompt Security Guard.} Acting as the entry point, this module enforces safety protocols before any processing occurs. It inspects raw user input to detect adversarial attempts or sensitive data leakage. If a threat is identified, the request is halted immediately; otherwise, the sanitized prompt is forwarded to the analyzer.
 
-\noindent \textbf{Input Analyzer.} This component functions as a rule based slot filler responsible for normalizing user intent. It scans the sanitized text for temporal constraints (e.g., specific dates, relative windows), asset symbols, and strategy topics. These findings are encapsulated into an \texttt{Intent} record that stores structured slots: asset scope (single symbol or all assets), time scope (explicit start and end or relative window), timeframe hints, requested metrics (price, volume, volatility, signal, divergence, news sentiment), strategy topics, and prompt flags such as \texttt{needs\_prompt\_chaining} or \texttt{needs\_live\_news}. This explicit data model is what the downstream planner consumes, so every query begins with an auditable representation of the investor’s request.
+\noindent \textbf{Input Analyzer.} This component acts as a rule based slot filler responsible for normalizing user intent. It scans the sanitized text for temporal constraints (e.g., specific dates, relative windows), asset symbols, and strategy topics. These findings are encapsulated into an \texttt{Intent} record that stores structured slots: asset scope (single symbol or all assets), time scope (explicit start and end or relative window), timeframe hints, requested metrics (price, volume, volatility, signal, divergence, news sentiment), strategy topics, and prompt flags such as \texttt{needs\_prompt\_chaining} or \texttt{needs\_live\_news}. This explicit data model is what the downstream planner consumes, so every query begins with an auditable representation of the investor’s request.
 
 \noindent \textbf{Query Orchestrator.} The orchestrator translates the high level \texttt{Intent} into a concrete \texttt{QueryPlan}. For complex requests, it assembles a multi step sequence including fetching candles, calculating indicators, and scanning for divergences. It produces precise \texttt{QuerySpec} objects containing table names, column lists, and filters, effectively making the chain of thought process explicit before the model is even invoked.
 
@@ -96,7 +102,7 @@ Terminal C implements a layered retrieval augmented generation pipeline designed
 
 \noindent \textbf{Post Processor.} The final stage applies a secondary security scan to the generated response. It ensures the output is non empty and free of prohibited content before delivering the grounded answer to the investor.
 
-To provide a concise overview of how modules exchange data, an object-level flow chart that visualizes the system pipeline based on the input and output data structures is shown in Figure~\ref{fig:object_flow}.
+Figure~\ref{fig:object_flow} illustrates the object-level data flow between modules, highlighting the hand-off of structured inputs and outputs throughout the pipeline.
 
 \begin{figure}[t]
     \centering
@@ -111,7 +117,7 @@ To provide a concise overview of how modules exchange data, an object-level flow
 
 
 \section{Experimental Components and Details}
-To validate the system's robustness and efficiency, we implemented specific experiments focusing on advanced prompting strategies, computational optimization, and security evaluation.
+We validated the system's robustness and efficiency through experiments focusing on advanced prompting strategies, computational optimization, and security evaluation.
 
 \subsection{Model Distillation}
 The large model used in TerminalC is \texttt{Llama-3.3-70B}, and the smaller model is \texttt{Llama-3.2-3B}.
@@ -124,7 +130,7 @@ We chose LoRA because it (i) preserves the model’s existing world knowledge, (
 
 
 \subsection{Advanced Prompting Techniques}
-We integrated three distinct prompting strategies to enhance the Virtual Assistant's reasoning capabilities without relying on expensive fine tuning. These includes structured prompt planning, meta prompting, and self reflection prompting.
+We integrated three distinct prompting strategies to enhance the Virtual Assistant's reasoning capabilities without relying on expensive fine tuning. These include structured prompt planning, meta prompting, and self reflection prompting.
 
 
 \textbf{Structured Prompt Planning.}\\
@@ -263,7 +269,8 @@ We evaluated three model configurations on a set of 25 diverse queries:
     \item \textbf{Small Model (LoRA):} Llama-3.1-8B with a custom LoRA adapter (local execution).
 \end{enumerate}
 
-The LoRA adapter was trained on 23 synthetic prompt--completion pairs generated by the large model. Training utilized standard causal cross-entropy loss (ranks 16/$\alpha$=64/dropout 0.1) for 50 epochs. 
+The LoRA adapter was trained on 23 synthetic prompt--completion pairs generated by the large model. Training utilized standard causal cross-entropy loss (ranks 16/$\alpha$=64/dropout 0.1) for 50 epochs.
+As shown in Figure~\ref{fig:lora_training}, the model converged rapidly, leading to some memorization artifacts due to the small dataset size.
 
 \begin{figure}[h]
     \centering
@@ -272,9 +279,7 @@ The LoRA adapter was trained on 23 synthetic prompt--completion pairs generated 
     \label{fig:lora_training}
 \end{figure}
 
-As shown in Figure~\ref{fig:lora_training}, the model converged rapidly, leading to some memorization artifacts due to the small dataset size.
 
-Additionally, we refined the system prompt processing during the experiment...
 
 
 
@@ -354,7 +359,7 @@ Fine-tuning the Small Model with the LoRA adapter introduced distinct behavioral
 This section evaluates the computational efficiency of the developed Virtual Assistant, focusing on the latency differences between model architectures and the quantitative impact of the implemented caching strategies.
 
 \subsubsection{Large Model (API) vs. Small Model (Local)}
-A direct comparison of raw inference speed between the Large Model (Llama-3.3-70B) and the Small Model (Llama-3.1-8B) is inherently challenging due to their deployment environments. The Large Model operates via an API, introducing network latency, whereas the Small Model runs locally, constrained by the host GPU. Consequently, rather than comparing absolute latency, we focus on the \textbf{relative efficiency gains} achieved through optimization techniques.
+A direct comparison of raw inference speed between the Large Model (Llama-3.3-70B) and the Small Model (Llama-3.1-8B) is inherently challenging due to their deployment environments. The Large Model operates via an API, introducing network latency, whereas the Small Model runs locally, constrained by the host GPU. Given these constraints, we focus on the \textbf{relative efficiency gains} achieved through optimization techniques rather than absolute latency.
 
 \subsubsection{Impact of Caching Systems}
 We implemented two caching systems and discuss their impact below.
@@ -376,7 +381,7 @@ To validate the effectiveness of the Query Cache in handling semantic variations
     \end{tabular}
 \end{table}
 
-The results demonstrate the robustness of the Query Cache. Even though Variant 2 had a completely different phrasing than Variant 1, the system correctly identified that the underlying data requirement (SQL intent) was identical.
+The Query Cache proved highly effective: even though Variant 2 had a completely different phrasing than Variant 1, the system correctly identified that the underlying data requirement (SQL intent) was identical.
 
 \begin{table}[h]
     \centering
@@ -421,7 +426,7 @@ As shown in Table \ref{tab:prompt_cache_results}, enabling Prompt Cache reduced 
 \subsection{Security test observations}
 The security evaluation confirmed that the system is highly resilient to prompt injection attacks, achieving a \textbf{100\% refusal rate} across all tested scenarios (see Table \ref{tab:queries}, Category: Security). 
 
-This robust performance is primarily driven by the \texttt{SecurityScanner} module integrated into the inference pipeline, rather than relying solely on the probabilistic safety alignment of the individual LLMs. As detailed in Section 4.4, the scanner intercepts patterns related to directive overrides, model extraction, and secret patterns.
+The \texttt{SecurityScanner} module drives this performance because it sits inside the inference pipeline rather than relying solely on the probabilistic safety alignment of the individual LLMs. As detailed in Section 4.4, the scanner intercepts patterns related to directive overrides, model extraction, and secret patterns.
 
 \noindent \textbf{Conclusion:}
 The architectural decision to implement a regex-based pre-filter effectively neutralizes potential attacks before they reach the generation phase, ensuring consistent security standards regardless of whether the Large (70B) or Small (8B) model is in use.
@@ -430,7 +435,7 @@ The architectural decision to implement a regex-based pre-filter effectively neu
 \section{Findings and Conclusion}
 
 \subsection{System Effectiveness}
-Building Terminal C confirmed that a structured retrieval pipeline is essential for making open-source models reliable in financial contexts. The integration of "Prompt Planning" and "Self-Reflection" proved critical; the large model successfully synthesized candles, indicator summaries, and news into trustworthy, evidence-backed answers. The breakdown of complex queries into explicit sub-tasks (Intent $\rightarrow$ SQL $\rightarrow$ Generation) prevented the logical leaps common in end-to-end generation.
+The development of Terminal C confirmed that a structured retrieval pipeline is essential for making open-source models reliable in financial contexts. The integration of "Prompt Planning" and "Self-Reflection" proved critical; the large model successfully synthesized candles, indicator summaries, and news into trustworthy, evidence-backed answers. The breakdown of complex queries into explicit sub-tasks (Intent $\rightarrow$ SQL $\rightarrow$ Generation) prevented the logical leaps common in end-to-end generation.
 
 \subsection{Model Trade-offs}
 Model scale remains a decisive factor. The \textbf{Large Teacher (70B)} handled nuanced constraints and multi-asset reasoning with precision. In contrast, the \textbf{Small Base Model (8B)} often struggled with conciseness, producing accurate but excessively verbose outputs. The \textbf{LoRA Adapter} successfully forced the small model into the correct format (JSON/Structured Text) but introduced an "echoing" artifact due to overfitting on the small synthetic dataset. This indicates that while distillation works for formatting, reasoning capability requires larger, more diverse instruction sets.
@@ -438,10 +443,7 @@ Model scale remains a decisive factor. The \textbf{Large Teacher (70B)} handled 
 \subsection{Security Posture}
 Contrasting with the probabilistic nature of LLMs, the deterministic \texttt{SecurityScanner} proved to be the system's strongest defense. The experiment showed a \textbf{100\% refusal rate} against adversarial prompts (SQL injection, privilege escalation) across all models. This confirms that for high-risk domains like finance, security should be implemented as an architectural guardrail (Regex/Pre-filtering) rather than relying solely on model alignment.
 
-\subsection{Future Work}
-While the \textbf{Dual Caching System} achieved 99\% latency reduction for static tasks, it faces limitations with "contextual staleness" (e.g., date-dependent queries). Future iterations should implement "Semantic Caching" to handle time-sensitive context more intelligently. Additionally, expanding the data ingestion layer to include real-time on-chain data and diverse news feeds would further bridge the gap between a research prototype and a production-grade trading assistant.
-
-
+\newpage
 \section*{Appendix: Table schemas}
 The following tables document the DuckDB schema. Row counts refer to the evaluation snapshot described in this report.
 
