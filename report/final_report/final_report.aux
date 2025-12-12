@@ -12,13 +12,33 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Advanced Prompting Techniques}{3}{subsection.4.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Dual Caching System}{4}{subsection.4.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Security Testing and Evaluation}{4}{subsection.4.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {5}Results}{5}{section.5}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Aggregate response statistics from the CSV logs}}{5}{table.2}\protected@file@percent }
-\newlabel{tab:modelstats}{{2}{5}{Aggregate response statistics from the CSV logs}{table.2}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {6}Findings}{6}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}Results}{4}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Evaluation setup}{4}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Model output comparison}{5}{subsection.5.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Quantitative Analysis of Model Responses (N=25)}}{5}{table.2}\protected@file@percent }
+\newlabel{tab:response_stats}{{2}{5}{Quantitative Analysis of Model Responses (N=25)}{table.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Qualitative Comparison of Model Responses by Query Type}}{5}{table.3}\protected@file@percent }
+\newlabel{tab:response_comparison}{{3}{5}{Qualitative Comparison of Model Responses by Query Type}{table.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Computation Resource Analysis}{6}{subsection.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.3.1}Large Model (API) vs. Small Model (Local)}{6}{subsubsection.5.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.3.2}Impact of Caching Systems}{6}{subsubsection.5.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Query Cache Efficiency:}{6}{section*.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Test Prompts for Query Cache Evaluation}}{7}{table.4}\protected@file@percent }
+\newlabel{tab:query_prompts}{{4}{7}{Test Prompts for Query Cache Evaluation}{table.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Latency Improvement with Query Cache (Large Model)}}{7}{table.5}\protected@file@percent }
+\newlabel{tab:query_cache_results}{{5}{7}{Latency Improvement with Query Cache (Large Model)}{table.5}{}}
+\@writefile{toc}{\contentsline {paragraph}{Prompt Cache Efficiency:}{7}{section*.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Latency Comparison for Heavy Context (Small Model)}}{7}{table.6}\protected@file@percent }
+\newlabel{tab:prompt_cache_results}{{6}{7}{Latency Comparison for Heavy Context (Small Model)}{table.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Security test observations}{7}{subsection.5.4}\protected@file@percent }
 \gdef \LT@i {\LT@entry 
     {1}{143.53082pt}\LT@entry 
     {1}{331.42996pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Findings and Conclusion}{8}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}System Effectiveness}{8}{subsection.6.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Model Trade-offs}{8}{subsection.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Security Posture}{8}{subsection.6.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.4}Future Work}{8}{subsection.6.4}\protected@file@percent }
 \gdef \LT@ii {\LT@entry 
     {1}{143.53082pt}\LT@entry 
     {1}{331.42996pt}}
@@ -37,12 +57,14 @@
 \gdef \LT@vii {\LT@entry 
     {1}{143.53082pt}\LT@entry 
     {1}{331.42996pt}}
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Runtime architecture of Terminal C. The pipeline separates security, intent analysis, data retrieval, and generation into distinct modules.}}{11}{figure.1}\protected@file@percent }
-\newlabel{fig:architecture}{{1}{11}{Runtime architecture of Terminal C. The pipeline separates security, intent analysis, data retrieval, and generation into distinct modules}{figure.1}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Modules flow based on input and output data object.}}{12}{figure.2}\protected@file@percent }
-\newlabel{fig:object_flow}{{2}{12}{Modules flow based on input and output data object}{figure.2}{}}
-\newlabel{lst:execution_log}{{1}{13}{Pipeline execution logs showing the objects used for structuring the prompt of "Did any news events coincide with the price drop of AVAX on Oct 28, 2025?"}{lstlisting.1}{}}
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {1}Pipeline execution logs showing the objects used for structuring the prompt of "Did any news events coincide with the price drop of AVAX on Oct 28, 2025?"}{13}{lstlisting.1}\protected@file@percent }
-\newlabel{lst:self_reflection}{{2}{13}{Self reflection prompt for every models}{lstlisting.2}{}}
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {2}Self reflection prompt for every models.}{13}{lstlisting.2}\protected@file@percent }
-\gdef \@abspage@last{13}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Runtime architecture of Terminal C.}}{12}{figure.1}\protected@file@percent }
+\newlabel{fig:architecture}{{1}{12}{Runtime architecture of Terminal C}{figure.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Modules flow based on input and output data object.}}{13}{figure.2}\protected@file@percent }
+\newlabel{fig:object_flow}{{2}{13}{Modules flow based on input and output data object}{figure.2}{}}
+\newlabel{lst:execution_log}{{1}{14}{Pipeline execution logs showing the objects used for structuring the prompt of "Did any news events coincide with the price drop of AVAX on Oct 28, 2025?"}{lstlisting.1}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {1}Pipeline execution logs showing the objects used for structuring the prompt of "Did any news events coincide with the price drop of AVAX on Oct 28, 2025?"}{14}{lstlisting.1}\protected@file@percent }
+\newlabel{lst:self_reflection}{{2}{14}{Self reflection prompt for every models}{lstlisting.2}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {2}Self reflection prompt for every models.}{14}{lstlisting.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Training loss for the LoRA adapter (50 epochs).}}{15}{figure.3}\protected@file@percent }
+\newlabel{fig:lora_training}{{3}{15}{Training loss for the LoRA adapter (50 epochs)}{figure.3}{}}
+\gdef \@abspage@last{15}

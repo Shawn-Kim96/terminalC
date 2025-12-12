@@ -4,10 +4,12 @@ from pathlib import Path
 import os
 from typing import Any
 import requests
+from requests.adapters import HTTPAdapter
 import sys
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel, AutoPeftModelForCausalLM
+from urllib3.util.retry import Retry
 
 PROJECT_NAME = "terminalC"
 PROJECT_DIR = os.path.join(os.path.abspath('.').split(PROJECT_NAME)[0], PROJECT_NAME)
@@ -34,6 +36,20 @@ class HuggingFaceInferenceClient:
             raise EnvironmentError("HUGGINGFACE_TOKEN is not set")
         self._timeout = timeout
         self._max_new_tokens = max_new_tokens
+        self._session = requests.Session()
+        retry_config = Retry(
+            total=5,
+            connect=5,
+            read=5,
+            status=5,
+            backoff_factor=1.5,
+            status_forcelist=(408, 409, 429, 500, 502, 503, 504),
+            allowed_methods=frozenset(["POST"]),
+            raise_on_status=False,
+        )
+        adapter = HTTPAdapter(max_retries=retry_config)
+        self._session.mount("https://", adapter)
+        self._session.mount("http://", adapter)
 
     def generate(
         self,
@@ -60,13 +76,16 @@ class HuggingFaceInferenceClient:
             "max_tokens": max_tokens,
         }
         body.update(extra)
-        response = requests.post(
-            self._endpoint,
-            headers=headers,
-            json=body,
-            timeout=self._timeout,
-        )
-        response.raise_for_status()
+        try:
+            response = self._session.post(
+                self._endpoint,
+                headers=headers,
+                json=body,
+                timeout=self._timeout,
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            raise RuntimeError("Failed to reach the Hugging Face inference endpoint") from exc
         data: dict[str, Any] = response.json()
         choices = data.get("choices", [])
         if choices:
