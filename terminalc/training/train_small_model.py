@@ -57,7 +57,7 @@ def train_model(
     learning_rate: float = 2e-4,
     hf_token: str | None = None,
     local_files_only: bool = True,
-    max_length: int = 512,
+    max_length: int = 1024,
     gradient_accumulation_steps: int = 1,
 ):
     print(f"Loading model: {base_model_name}")
