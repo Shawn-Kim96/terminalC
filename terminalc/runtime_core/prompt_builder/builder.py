@@ -17,7 +17,10 @@ _MARKET_PRICE_TEMPLATE = """You are a crypto market data assistant. Answer the u
 User Question:
 {instruction}
 
-Available Data:
+Plan Outline:
+{plan_outline}
+
+Data Evidence Pack:
 {context}
 
 Instructions:
@@ -125,7 +128,12 @@ class PromptBuilder:
             raise KeyError(f"Unknown template: {template_id}")
 
         context_blocks = tuple(self._format_snapshot(snapshot) for snapshot in snapshots)
-        payload_text = template.format(instruction=instruction, context="\n".join(context_blocks))
+        plan_outline = self._build_plan_outline(plan)
+        payload_text = template.format(
+            instruction=instruction,
+            context="\n".join(context_blocks),
+            plan_outline=plan_outline,
+        )
         metadata = {
             "intent": plan.intent.name,
             "template_id": template_id,
@@ -167,3 +175,12 @@ class PromptBuilder:
             df["return_pct"] = (returns / df["open"]) * 100
             df.replace([np.inf, -np.inf], np.nan, inplace=True)
         return df
+
+    @staticmethod
+    def _build_plan_outline(plan: QueryPlan) -> str:
+        if not plan.plan_steps:
+            return "1. Review the retrieved context tables in order."
+        lines = []
+        for idx, step in enumerate(plan.plan_steps, start=1):
+            lines.append(f"{idx}. {step}")
+        return "\n".join(lines)

@@ -6,6 +6,8 @@ import os
 import sys
 from pathlib import Path
 
+import pandas as pd
+
 PROJECT_NAME = "terminalC"
 PROJECT_DIR = os.path.join(os.path.abspath('.').split(PROJECT_NAME)[0], PROJECT_NAME)
 sys.path.append(PROJECT_DIR)
@@ -15,7 +17,7 @@ from terminalc.runtime_core.cache.query_cache import QueryCache
 from terminalc.runtime_core.config import RuntimeConfig, load_runtime_config
 from terminalc.runtime_core.data_access.duckdb_client import DuckDBClient
 from terminalc.runtime_core.input_parser.analyzer import InputAnalyzer
-from terminalc.runtime_core.models.runtime_models import DataSnapshot, LLMResult, PromptPayload, QueryPlan
+from terminalc.runtime_core.models.runtime_models import DataSnapshot, LLMResult, PromptPayload, QueryPlan, QuerySpec
 from terminalc.runtime_core.pipelines.llm_client import (
     HuggingFaceInferenceClient,
     LocalTransformersClient,
@@ -25,6 +27,7 @@ from terminalc.runtime_core.processor.self_reflection import SelfReflectionProce
 from terminalc.runtime_core.processor.pre_processor import PromptSecurityGuard
 from terminalc.runtime_core.prompt_builder.builder import PromptBuilder
 from terminalc.runtime_core.query_planner.planner import QueryOrchestrator
+from terminalc.runtime_core.tools import CoinDeskWebSearch
 
 ModelType = Literal["large", "small"] | None
 
@@ -50,6 +53,7 @@ class RuntimePipeline:
         post_processor: LLMPostProcessor | None = None,
         prompt_guard: PromptSecurityGuard | None = None,
         self_reflector: SelfReflectionProcessor | None = None,
+        web_search_tool: CoinDeskWebSearch | None = None,
     ) -> None:
         self._config = config or load_runtime_config()
         self._model_type = model_type
@@ -66,6 +70,7 @@ class RuntimePipeline:
         self._post_processor = post_processor or LLMPostProcessor()
         self._prompt_guard = prompt_guard or PromptSecurityGuard()
         self._self_reflector = self_reflector or SelfReflectionProcessor()
+        self._web_search_tool = web_search_tool or CoinDeskWebSearch()
         self._duckdb = DuckDBClient(self._config.duckdb)
         self._query_cache = QueryCache(self._config.cache.query_cache_dir)
         self._prompt_cache = PromptCache(self._config.cache.prompt_cache_dir)
@@ -93,7 +98,10 @@ class RuntimePipeline:
         intent = self._analyzer.analyze(prompt)
         plan = self._planner.build_plan(intent)
         instruction = instruction or prompt
-        snapshots = self._query_execution(plan)
+        snapshots = list(self._query_execution(plan))
+        web_snapshot = self._maybe_fetch_web_news(plan, prompt)
+        if web_snapshot:
+            snapshots.append(web_snapshot)
         payload = self._prompt_builder.build(plan, snapshots, instruction, template_id)
 
         if build_only:
@@ -135,7 +143,10 @@ class RuntimePipeline:
         intent = self._analyzer.analyze(prompt)
         plan = self._planner.build_plan(intent)
         instruction = instruction or prompt
-        snapshots = self._query_execution(plan)
+        snapshots = list(self._query_execution(plan))
+        web_snapshot = self._maybe_fetch_web_news(plan, prompt)
+        if web_snapshot:
+            snapshots.append(web_snapshot)
         payload = self._prompt_builder.build(plan, snapshots, instruction, template_id)
         return payload
 
@@ -153,6 +164,25 @@ class RuntimePipeline:
             self._query_cache.store(snapshot)
             snapshots.append(snapshot)
         return snapshots
+
+    def _maybe_fetch_web_news(self, plan: QueryPlan, prompt: str) -> DataSnapshot | None:
+        if not self._web_search_tool:
+            return None
+        slots = plan.intent.slots
+        if not slots or "needs_live_news" not in (slots.prompt_flags or ()):
+            return None
+        symbols = slots.asset_scope.symbols if slots.asset_scope else ()
+        articles = self._web_search_tool.search(prompt, symbols=symbols, limit=5)
+        if not articles:
+            return None
+        frame = pd.DataFrame(articles)
+        spec = QuerySpec(
+            table="web_search_articles",
+            columns=tuple(frame.columns),
+            filters={"query": prompt, "source": "CoinDesk", "symbols": list(symbols)},
+            limit=len(articles),
+        )
+        return DataSnapshot(spec=spec, row_count=len(frame), payload=frame, cache_key=None)
 
     def _build_llm_client(self, model_type: Literal["large", "small"]) -> LLMClientProtocol:
         models_cfg = self._config.models
