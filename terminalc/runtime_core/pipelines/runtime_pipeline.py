@@ -90,6 +90,15 @@ class RuntimePipeline:
         if self._prompt_guard:
             notice = self._prompt_guard.enforce(prompt)
             if notice:
+                # Return appropriate type based on build_only flag
+                if build_only:
+                    # Return a minimal PromptPayload with security notice
+                    return PromptPayload(
+                        template_id="blocked",
+                        instructions=notice,
+                        context_blocks=(),
+                        metadata={"intent": "blocked", "user_instruction": prompt},
+                    )
                 return LLMResult(response_text=notice, model_name="prompt_security_guard", total_tokens=None)
 
         if self._llm_client is None and not build_only:
