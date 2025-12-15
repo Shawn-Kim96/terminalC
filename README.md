@@ -1,7 +1,7 @@
 
 # Terminal C
 
-Terminal C is the crypto research assistant built for CMPE 259. The goal is simple: answer realistic analyst questions with hard data, cite exactly where every number came from, and keep the entire system portable so anyone on the team can run it locally or in Colab.
+Terminal C is the crypto research assistant using LLMs. The goal is to answer realistic analyst questions regarding crypto investment with hard data, cite exactly where every number came from, and assist people who needs help on investing crypto market.
 
 ## Start Guide
 
