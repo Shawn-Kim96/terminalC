@@ -5,8 +5,6 @@ Terminal C is the crypto research assistant built for CMPE 259. The goal is simp
 
 ## Start Guide
 
-Use this method if you are testing the Large Model or if you want to run the code on your own machine.
-
 1.  **Clone this repository.** 
     Make sure the project directory name is `terminalC`.
 
