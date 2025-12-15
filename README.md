@@ -3,26 +3,31 @@
 
 Terminal C is the crypto research assistant built for CMPE 259. The goal is simple: answer realistic analyst questions with hard data, cite exactly where every number came from, and keep the entire system portable so anyone on the team can run it locally or in Colab.
 
-## Quick Start Guide
-
-The execution environment depends on which model configuration you intend to test.
-
-  * **Large Model (Llama-3.3-70B):** Uses the Hugging Face API. It requires a stable internet connection.
-  * **Small Model (Llama-3.1-8B):** Runs entirely offline using local weights stored on the HPC cluster.
-
-> **Note on Connectivity:** While it is technically possible to use the API from HPC GPU nodes, we frequently encounter intermittent HTTP connection errors with Hugging Face. Therefore, it is highly recommended to run the **Large Model locally** and the **Small Model on HPC**.
-
-### Option 1: Local Setup (Recommended for Large Model / API)
+## Start Guide
 
 Use this method if you are testing the Large Model or if you want to run the code on your own machine.
 
-1.  **Install Dependencies**
+1.  **Clone this repository.** 
+    Make sure the project directory name is `terminalC`.
 
+2.  **Install files from Google Drive**
+    There are 3 files to download
+    1. `venv` folder: This if for virtual envrionment. You can make your own environment yourself, but it is better to just download from google drive. ([link](https://drive.google.com/file/d/1yotOST_PzHhu61ZFR3vLVKEHmwCnuXCL/view?usp=drive_link))
+    2. `data` folder: Includes database and model. ([link](https://drive.google.com/file/d/1mNo3zTmn54OxCm39Yf3s4uQ7uHekCU49/view?usp=drive_link))
+    3. `models` folder: Includes lora finetuned small model. ([link](https://drive.google.com/file/d/1OMvjTqq1yqMvhGGuGkMq7_mdtxE48NV1/view?usp=drive_link))
+
+    After downloading three files, make sure you have your directory structure as below.
     ```bash
-    pip install -r requirements.txt
+    .
+    ├── data
+    ├── .venv   # change venv file name to .venv
+    ├── models
+    ├── .env    # .env file is shown below
+    ├── notebooks
+    ├── ...
     ```
 
-2.  **Configure Environment Variables**
+3.  **Configure Environment Variables**
     Create a `.env` file in the root directory and add the following configuration.
 
       * *Replace `PUT_YOUR_HUGGINGFACE_TOKEN` with your actual key.*
@@ -52,40 +57,6 @@ Use this method if you are testing the Large Model or if you want to run the cod
     jupyter notebook terminalc.ipynb
     ```
 
------
-
-### Option 2: HPC Setup (Required for Small Model / Local Weights)
-
-Use this method to test the Small Model (Base & LoRA). Due to the complexity of the HPC environment and the large size of the model weights, **please execute the project within my specific directory using the pre-configured conda environment.**
-
-1.  **Connect to HPC**
-    Replace `YOUR_SJSU_ID` with your student ID.
-
-    ```bash
-    ssh YOUR_SJSU_ID@coe-hpc1.sjsu.edu
-    ```
-
-2.  **Request a GPU Node**
-
-    ```bash
-    srun -p gpuqs --pty /bin/bash
-    ```
-
-3.  **Navigate to Project Directory & Activate Environment**
-    You must use this specific path to access the pre-loaded model weights and environment.
-
-    ```bash
-    cd /home/018219422/terminalc
-    conda activate terminalc
-    ```
-
-4.  **Run the Assistant**
-    Launch the notebook (or convert/run as script if using CLI):
-
-    ```bash
-    jupyter notebook terminalc.ipynb
-    ```
-    
 ## Directory structure
 
 - `terminalc/data_scripts/` – end-to-end data builders. They fetch OHLCV candles, compute all technical indicators, derive Investing.com style signals, assemble the strategy catalog, scrape CoinDesk headlines, and load everything into DuckDB.
